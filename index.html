@@ -4,7 +4,7 @@
   <title>Simple Chat Room</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
-    ul { list-style-type: none; padding: 0; }
+    ul { list-style-type: none; padding: 0; max-height: 400px; overflow-y: auto; }
     li { padding: 8px; background: #eee; margin-bottom: 5px; border-radius: 4px; }
     input { padding: 10px; width: 80%; }
     button { padding: 10px; }
@@ -74,7 +74,17 @@
       const item = document.createElement('li');
       item.textContent = msg.user + ": " + msg.text;
       messages.appendChild(item);
-      window.scrollTo(0, document.body.scrollHeight);
+      messages.scrollTop = messages.scrollHeight;
+    });
+
+    socket.on('chat history', function(history) {
+      messages.innerHTML = ""; // clear existing
+      history.forEach(msg => {
+        const item = document.createElement('li');
+        item.textContent = msg.user + ": " + msg.text;
+        messages.appendChild(item);
+      });
+      messages.scrollTop = messages.scrollHeight;
     });
   </script>
 </body>
