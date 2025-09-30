@@ -19,11 +19,15 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    // Prompt user for a name when the page loads
-    var username = '';
+    // Load username from localStorage or prompt until a valid name is given
+    var username = localStorage.getItem('chatUsername') || '';
+
     while (!username) {
       username = prompt("Enter your name:");
-      if (username) username = username.trim();
+      if (username) {
+        username = username.trim();
+        localStorage.setItem('chatUsername', username);
+      }
     }
 
     var socket = io();
@@ -35,7 +39,6 @@
     form.addEventListener('submit', function(e) {
       e.preventDefault();
       if (input.value) {
-        // Send an object with username and message
         socket.emit('chat message', { user: username, text: input.value });
         input.value = '';
       }
@@ -43,7 +46,6 @@
 
     socket.on('chat message', function(msg) {
       var item = document.createElement('li');
-      // Show username and message
       item.textContent = msg.user + ": " + msg.text;
       messages.appendChild(item);
       window.scrollTo(0, document.body.scrollHeight);
