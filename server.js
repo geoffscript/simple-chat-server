@@ -6,6 +6,8 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
+const messages = []; // store chat history in memory
+
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/index.html');
 });
@@ -13,10 +15,19 @@ app.get('/', (req, res) => {
 io.on('connection', (socket) => {
   console.log('a user connected');
 
-socket.on('chat message', (msg) => {
-  // msg is now an object { user: ..., text: ... }
-  io.emit('chat message', msg);
-});
+  // send chat history to the new user
+  socket.emit('chat history', messages);
+
+  socket.on('chat message', (msg) => {
+    messages.push(msg);
+
+    // keep only last 50 messages
+    if (messages.length > 50) {
+      messages.shift();
+    }
+
+    io.emit('chat message', msg); // broadcast
+  });
 
   socket.on('disconnect', () => {
     console.log('user disconnected');
