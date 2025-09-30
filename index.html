@@ -5,9 +5,10 @@
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
     ul { list-style-type: none; padding: 0; max-height: 400px; overflow-y: auto; }
-    li { padding: 8px; background: #eee; margin-bottom: 5px; border-radius: 4px; }
-    input { padding: 10px; width: 80%; }
-    button { padding: 10px; }
+    li { padding: 8px; background: #eee; margin-bottom: 5px; border-radius: 4px; display: flex; align-items: center; }
+    li img { border-radius: 50%; margin-right: 10px; }
+    input { padding: 10px; width: 70%; }
+    button { padding: 10px; margin-left: 5px; }
     #top-bar { display: flex; justify-content: space-between; align-items: center; }
     #username-display { font-weight: bold; }
   </style>
@@ -18,6 +19,7 @@
     <div>
       <span id="username-display"></span>
       <button id="change-name">Change Name</button>
+      <button id="change-avatar">Change Avatar</button>
     </div>
   </div>
 
@@ -31,6 +33,7 @@
   <script src="/socket.io/socket.io.js"></script>
   <script>
     let username = localStorage.getItem('chatUsername') || '';
+    let avatarUrl = localStorage.getItem('chatAvatar') || 'https://via.placeholder.com/40';
 
     function promptForUsername() {
       let newName = '';
@@ -45,6 +48,14 @@
       document.getElementById('username-display').textContent = "You are: " + username;
     }
 
+    function promptForAvatar() {
+      let newAvatar = prompt("Enter a link to your profile picture (URL):");
+      if (newAvatar) {
+        avatarUrl = newAvatar.trim();
+        localStorage.setItem('chatAvatar', avatarUrl);
+      }
+    }
+
     if (!username) {
       promptForUsername();
     } else {
@@ -57,6 +68,10 @@
       promptForUsername();
     });
 
+    document.getElementById('change-avatar').addEventListener('click', () => {
+      promptForAvatar();
+    });
+
     const socket = io();
     const form = document.getElementById('form');
     const input = document.getElementById('input');
@@ -65,14 +80,25 @@
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       if (input.value) {
-        socket.emit('chat message', { user: username, text: input.value });
+        socket.emit('chat message', { user: username, avatar: avatarUrl, text: input.value });
         input.value = '';
       }
     });
 
     socket.on('chat message', function (msg) {
       const item = document.createElement('li');
-      item.textContent = msg.user + ": " + msg.text;
+
+      const img = document.createElement('img');
+      img.src = msg.avatar || 'https://via.placeholder.com/40';
+      img.width = 40;
+      img.height = 40;
+
+      const span = document.createElement('span');
+      span.textContent = msg.user + ": " + msg.text;
+
+      item.appendChild(img);
+      item.appendChild(span);
+
       messages.appendChild(item);
       messages.scrollTop = messages.scrollHeight;
     });
@@ -81,7 +107,18 @@
       messages.innerHTML = ""; // clear existing
       history.forEach(msg => {
         const item = document.createElement('li');
-        item.textContent = msg.user + ": " + msg.text;
+
+        const img = document.createElement('img');
+        img.src = msg.avatar || 'https://via.placeholder.com/40';
+        img.width = 40;
+        img.height = 40;
+
+        const span = document.createElement('span');
+        span.textContent = msg.user + ": " + msg.text;
+
+        item.appendChild(img);
+        item.appendChild(span);
+
         messages.appendChild(item);
       });
       messages.scrollTop = messages.scrollHeight;
