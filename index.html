@@ -21,6 +21,7 @@
     <h1>Simple Chat Room</h1>
     <div>
       <span id="username-display"></span>
+      <button id="logout-btn" style="display:none;">Logout</button>
     </div>
   </div>
 
@@ -71,12 +72,23 @@
     const form = document.getElementById('form');
     const input = document.getElementById('input');
     const messages = document.getElementById('messages');
+    const logoutBtn = document.getElementById('logout-btn');
 
     function showChatUI() {
       authDiv.style.display = 'none';
       form.style.display = 'flex';
       messages.style.display = 'block';
+      logoutBtn.style.display = 'inline-block';
       document.getElementById('username-display').textContent = "You are: " + username;
+    }
+
+    function showAuthUI() {
+      authDiv.style.display = 'block';
+      form.style.display = 'none';
+      messages.style.display = 'none';
+      logoutBtn.style.display = 'none';
+      username = '';
+      localStorage.removeItem('chatUsername');
     }
 
     // Register
@@ -131,6 +143,11 @@
         loginMsg.textContent = 'Error logging in';
         console.error(err);
       }
+    });
+
+    // Logout
+    logoutBtn.addEventListener('click', () => {
+      showAuthUI();
     });
 
     // Chat form submission
