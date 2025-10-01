@@ -2,7 +2,7 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const bcrypt = require('bcryptjs');
-const { Pool } = require('pg'); // PostgreSQL client
+const { Pool } = require('pg');
 
 const app = express();
 const server = http.createServer(app);
@@ -17,13 +17,33 @@ app.use(express.static(__dirname));
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
-    rejectUnauthorized: false, // Render Postgres requires this
+    rejectUnauthorized: false,
   },
 });
 
-// Routes
+// Auto-create users table if it doesn't exist
+async function createUsersTable() {
+  const client = await pool.connect();
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(50) UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    console.log('Users table is ready.');
+  } catch (err) {
+    console.error('Error creating users table:', err);
+  } finally {
+    client.release();
+  }
+}
 
-// Register
+createUsersTable();
+
+// Registration endpoint
 app.post('/register', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).send('Missing username or password');
@@ -46,7 +66,7 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// Login
+// Login endpoint
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).send('Missing username or password');
@@ -73,18 +93,18 @@ app.get('/', (req, res) => {
 
 // Chat via Socket.IO
 io.on('connection', (socket) => {
-  console.log('a user connected');
+  console.log('A user connected');
 
   socket.on('chat message', (msg) => {
     io.emit('chat message', msg);
   });
 
   socket.on('disconnect', () => {
-    console.log('user disconnected');
+    console.log('User disconnected');
   });
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`listening on *:${PORT}`);
+  console.log(`Listening on *:${PORT}`);
 });
