@@ -89,7 +89,9 @@
       logoutBtn.style.display = 'none';
       username = '';
       localStorage.removeItem('chatUsername');
+      document.getElementById('username-display').textContent = ""; // <-- clear username
     }
+
 
     // Register
     registerBtn.addEventListener('click', async () => {
