@@ -19,20 +19,26 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
+// Serve index.html
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public/index.html"));
 });
 
 // Registration endpoint
 app.post("/register", async (req, res) => {
-  const { username, password, profile_url } = req.body;
+  const { username, password, profileUrl } = req.body;
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      `INSERT INTO users (username, password_hash, profile_url) VALUES ($1, $2, $3) RETURNING *`,
-      [username, hashedPassword, profile_url || ""]
+      `INSERT INTO users (username, password_hash, profile_url) VALUES ($1, $2, $3) RETURNING id, username, profile_url`,
+      [username, hashedPassword, profileUrl || ""]
     );
-    res.json({ success: true, user: result.rows[0] });
+    const user = {
+      id: result.rows[0].id,
+      username: result.rows[0].username,
+      profileUrl: result.rows[0].profile_url
+    };
+    res.json({ success: true, user });
   } catch (err) {
     console.error(err);
     if (err.code === "23505") {
@@ -51,12 +57,19 @@ app.post("/login", async (req, res) => {
       `SELECT * FROM users WHERE username = $1`,
       [username]
     );
-    if (result.rows.length === 0) return res.json({ success: false, message: "Invalid username or password" });
+    if (result.rows.length === 0)
+      return res.json({ success: false, message: "Invalid username or password" });
 
-    const user = result.rows[0];
-    const match = await bcrypt.compare(password, user.password_hash);
-    if (!match) return res.json({ success: false, message: "Invalid username or password" });
+    const userDb = result.rows[0];
+    const match = await bcrypt.compare(password, userDb.password_hash);
+    if (!match)
+      return res.json({ success: false, message: "Invalid username or password" });
 
+    const user = {
+      id: userDb.id,
+      username: userDb.username,
+      profileUrl: userDb.profile_url || ""
+    };
     res.json({ success: true, user });
   } catch (err) {
     console.error(err);
@@ -64,11 +77,12 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// Chat messages
-let messages = []; // Keep last 50 messages in memory
+// Chat messages (keep last 50 in memory)
+let messages = [];
 
 io.on("connection", (socket) => {
   console.log("a user connected");
+
   // Send last 50 messages to new user
   socket.emit("chat history", messages);
 
