@@ -5,20 +5,36 @@
 <title>User Profile</title>
 <style>
   body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
-  #profile img { width: 150px; height: 150px; border-radius: 50%; }
+  #profile img { width: 150px; height: 150px; border-radius: 50%; object-fit: cover; }
+  #aboutMeInput { width: 300px; height: 80px; margin-top: 10px; }
+  #saveAboutBtn { margin-top: 5px; padding: 5px 10px; }
 </style>
 </head>
 <body>
 <div id="profile">
   <img id="profilePic" src="https://via.placeholder.com/150" alt="Profile Picture">
   <h2 id="username"></h2>
+  <p id="aboutMe"></p>
+  <textarea id="aboutMeInput" placeholder="Write something about yourself..."></textarea><br>
+  <button id="saveAboutBtn">Save</button>
 </div>
 
 <script>
-async function loadProfile() {
-  const pathParts = window.location.pathname.split('/');
-  const username = pathParts[pathParts.length - 1];
+let currentUser = null; // Will be set if user is logged in
 
+// Fetch current logged-in user info (if you already have a way to store it)
+async function getCurrentUser() {
+  try {
+    const res = await fetch('/api/me'); // Optional endpoint to get logged-in user
+    if (res.ok) currentUser = await res.json();
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function loadProfile() {
+  await getCurrentUser();
+  const username = window.location.pathname.split('/').pop();
   const res = await fetch(`/api/user/${username}`);
   if (!res.ok) {
     document.getElementById('profile').innerHTML = '<p>User not found</p>';
@@ -28,6 +44,25 @@ async function loadProfile() {
   const user = await res.json();
   document.getElementById('username').textContent = user.username;
   document.getElementById('profilePic').src = user.profile_url || 'https://via.placeholder.com/150';
+  document.getElementById('aboutMe').textContent = user.about_me || '';
+
+  // Only show editing if viewing own profile
+  if (currentUser && currentUser.username === user.username) {
+    document.getElementById('aboutMeInput').value = user.about_me || '';
+    document.getElementById('saveAboutBtn').onclick = async () => {
+      const aboutText = document.getElementById('aboutMeInput').value;
+      const updateRes = await fetch(`/api/user/${user.username}/about`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ about_me: aboutText })
+      });
+      const updated = await updateRes.json();
+      document.getElementById('aboutMe').textContent = updated.about_me;
+    };
+  } else {
+    document.getElementById('aboutMeInput').style.display = 'none';
+    document.getElementById('saveAboutBtn').style.display = 'none';
+  }
 }
 
 loadProfile();
