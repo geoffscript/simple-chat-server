@@ -36,16 +36,13 @@ app.post("/register", async (req, res) => {
     const user = {
       id: result.rows[0].id,
       username: result.rows[0].username,
-      profileUrl: result.rows[0].profile_url
+      profileUrl: result.rows[0].profile_url,
     };
     res.json({ success: true, user });
   } catch (err) {
     console.error(err);
-    if (err.code === "23505") {
-      res.json({ success: false, message: "Username taken" });
-    } else {
-      res.json({ success: false, message: "Server error" });
-    }
+    if (err.code === "23505") res.json({ success: false, message: "Username taken" });
+    else res.json({ success: false, message: "Server error" });
   }
 });
 
@@ -53,22 +50,18 @@ app.post("/register", async (req, res) => {
 app.post("/login", async (req, res) => {
   const { username, password } = req.body;
   try {
-    const result = await pool.query(
-      `SELECT * FROM users WHERE username = $1`,
-      [username]
-    );
+    const result = await pool.query(`SELECT * FROM users WHERE username = $1`, [username]);
     if (result.rows.length === 0)
       return res.json({ success: false, message: "Invalid username or password" });
 
     const userDb = result.rows[0];
     const match = await bcrypt.compare(password, userDb.password_hash);
-    if (!match)
-      return res.json({ success: false, message: "Invalid username or password" });
+    if (!match) return res.json({ success: false, message: "Invalid username or password" });
 
     const user = {
       id: userDb.id,
       username: userDb.username,
-      profileUrl: userDb.profile_url || ""
+      profileUrl: userDb.profile_url || "",
     };
     res.json({ success: true, user });
   } catch (err) {
@@ -77,13 +70,32 @@ app.post("/login", async (req, res) => {
   }
 });
 
+// API endpoint for profile page
+app.get("/api/user/:username", async (req, res) => {
+  const { username } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT username, profile_url FROM users WHERE username = $1`,
+      [username]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: "User not found" });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Serve profile page
+app.get("/profile/:username", (req, res) => {
+  res.sendFile(path.join(__dirname, "public/profile.html"));
+});
+
 // Chat messages (keep last 50 in memory)
 let messages = [];
 
 io.on("connection", (socket) => {
   console.log("a user connected");
-
-  // Send last 50 messages to new user
   socket.emit("chat history", messages);
 
   socket.on("chat message", (msg) => {
