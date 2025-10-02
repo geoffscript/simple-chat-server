@@ -70,6 +70,21 @@ app.post('/login', async (req, res) => {
   }
 });
 
+app.post('/update-profile', async (req, res) => {
+  const { profilePictureUrl } = req.body;
+  try {
+    const result = await pool.query(
+      `UPDATE users SET profile_picture_url = $1 WHERE id = $2 RETURNING *`,
+      [profilePictureUrl, req.session.user.id]
+    );
+    req.session.user = result.rows[0];
+    res.json({ success: true, user: result.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: 'Update failed' });
+  }
+});
+
 // Socket.io
 io.on('connection', (socket) => {
   console.log('a user connected');
