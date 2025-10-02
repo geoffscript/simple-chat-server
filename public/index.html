@@ -7,7 +7,7 @@
 body { font-family: Arial, sans-serif; }
 #chat { display: none; }
 .message { margin-bottom: 10px; display: flex; align-items: center; }
-.message img { width: 30px; height: 30px; border-radius: 50%; margin-right: 5px; }
+.message img { width: 30px; height: 30px; border-radius: 50%; margin-right: 5px; object-fit: cover; }
 #messages { list-style: none; padding: 0; max-height: 400px; overflow-y: auto; }
 </style>
 </head>
@@ -50,25 +50,27 @@ const authDiv = document.getElementById('auth');
 const chatDiv = document.getElementById('chat');
 const currentUserSpan = document.getElementById('currentUser');
 const messagesUl = document.getElementById('messages');
+const DEFAULT_PROFILE = 'https://via.placeholder.com/30';
 
 // Register
 document.getElementById('registerForm').addEventListener('submit', async e => {
   e.preventDefault();
+  const profileUrlInput = document.getElementById('profileUrl').value.trim();
   const res = await fetch('/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       username: document.getElementById('regUsername').value,
       password: document.getElementById('regPassword').value,
-      profileUrl: document.getElementById('profileUrl').value
+      profileUrl: profileUrlInput
     })
   });
   const data = await res.json();
   if (data.success) loginAs(data.user || {
     username: document.getElementById('regUsername').value,
-    profileUrl: document.getElementById('profileUrl').value
+    profileUrl: profileUrlInput || DEFAULT_PROFILE
   });
-  else alert(data.error);
+  else alert(data.message || 'Error');
 });
 
 // Login
@@ -84,7 +86,7 @@ document.getElementById('loginForm').addEventListener('submit', async e => {
   });
   const data = await res.json();
   if (data.success) loginAs(data.user);
-  else alert(data.error);
+  else alert(data.message || 'Error');
 });
 
 // Logout
@@ -97,6 +99,7 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
 
 function loginAs(user) {
   currentUser = user;
+  currentUser.profileUrl = currentUser.profileUrl || DEFAULT_PROFILE;
   currentUserSpan.textContent = currentUser.username;
   authDiv.style.display = 'none';
   chatDiv.style.display = 'block';
@@ -106,13 +109,14 @@ function loginAs(user) {
 document.getElementById('messageForm').addEventListener('submit', e => {
   e.preventDefault();
   if (!currentUser) return;
+  const msgInput = document.getElementById('msgInput');
   const msg = {
     username: currentUser.username,
-    profileUrl: currentUser.profileUrl || '',
-    text: document.getElementById('msgInput').value
+    profileUrl: currentUser.profileUrl || DEFAULT_PROFILE,
+    text: msgInput.value
   };
   socket.emit('chat message', msg);
-  document.getElementById('msgInput').value = '';
+  msgInput.value = '';
 });
 
 // Load chat history
@@ -127,7 +131,17 @@ socket.on('chat message', addMessage);
 function addMessage(msg) {
   const li = document.createElement('li');
   li.className = 'message';
-  li.innerHTML = `<img src="${msg.profileUrl || 'https://via.placeholder.com/30'}"> <strong>${msg.username}:</strong> ${msg.text}`;
+
+  // Ensure fallback if image fails
+  const img = document.createElement('img');
+  img.src = msg.profileUrl || DEFAULT_PROFILE;
+  img.onerror = () => { img.src = DEFAULT_PROFILE; };
+
+  const text = document.createElement('span');
+  text.innerHTML = `<strong>${msg.username}:</strong> ${msg.text}`;
+
+  li.appendChild(img);
+  li.appendChild(text);
   messagesUl.appendChild(li);
   messagesUl.scrollTop = messagesUl.scrollHeight;
 }
