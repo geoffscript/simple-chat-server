@@ -132,13 +132,14 @@ function addMessage(msg) {
   const li = document.createElement('li');
   li.className = 'message';
 
-  // Ensure fallback if image fails
+  // Profile image with fallback
   const img = document.createElement('img');
   img.src = msg.profileUrl || DEFAULT_PROFILE;
   img.onerror = () => { img.src = DEFAULT_PROFILE; };
 
+  // Username clickable to profile page
   const text = document.createElement('span');
-  text.innerHTML = `<strong>${msg.username}:</strong> ${msg.text}`;
+  text.innerHTML = `<strong><a href="/profile/${msg.username}">${msg.username}</a>:</strong> ${msg.text}`;
 
   li.appendChild(img);
   li.appendChild(text);
