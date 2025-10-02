@@ -1,95 +1,72 @@
-// server.js
 const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
+const app = express();
+const http = require('http').createServer(app);
+const io = require('socket.io')(http);
 const bcrypt = require('bcryptjs');
 const { Pool } = require('pg');
-require('dotenv').config();
 
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
-
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static('public'));
-
-// PostgreSQL pool
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL, // set in Render env
-  ssl: {
-    rejectUnauthorized: false, // required on Render
-  },
+  connectionString: process.env.DATABASE_URL // Render PostgreSQL URL
 });
 
-// Test database connection
-pool.connect()
-  .then(client => {
-    console.log('✅ Connected to database');
-    client.release();
-  })
-  .catch(err => console.error('❌ Database connection error:', err.stack));
+app.use(express.static('public'));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// Routes
+// Serve login/register page
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/public/index.html');
+});
+
+// Registration endpoint
 app.post('/register', async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, profileUrl } = req.body;
   try {
-    const hash = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      'INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id, username',
-      [username, hash]
+      'INSERT INTO users (username, password_hash, profile_url) VALUES ($1, $2, $3) RETURNING id',
+      [username, hashedPassword, profileUrl]
     );
-    res.json({ user: result.rows[0] });
+    res.json({ success: true, id: result.rows[0].id });
   } catch (err) {
-    console.error('Register error:', err);
+    console.error(err);
     if (err.code === '23505') { // unique violation
-      res.status(400).json({ error: 'Username already exists' });
+      res.json({ success: false, error: 'Username already taken' });
     } else {
-      res.status(500).json({ error: 'Server error' });
+      res.json({ success: false, error: 'Server error' });
     }
   }
 });
 
+// Login endpoint
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   try {
-    const result = await pool.query(
-      'SELECT * FROM users WHERE username = $1',
-      [username]
-    );
+    const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+    if (result.rows.length === 0) return res.json({ success: false, error: 'Invalid username or password' });
     const user = result.rows[0];
-    if (!user) return res.status(400).json({ error: 'Invalid username or password' });
-
     const match = await bcrypt.compare(password, user.password_hash);
-    if (!match) return res.status(400).json({ error: 'Invalid username or password' });
-
-    res.json({ user: { id: user.id, username: user.username } });
-  } catch (err) {
-    console.error('Login error:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-app.post('/update-profile', async (req, res) => {
-  const { profilePictureUrl } = req.body;
-  try {
-    const result = await pool.query(
-      `UPDATE users SET profile_picture_url = $1 WHERE id = $2 RETURNING *`,
-      [profilePictureUrl, req.session.user.id]
-    );
-    req.session.user = result.rows[0];
-    res.json({ success: true, user: result.rows[0] });
+    if (match) {
+      res.json({ success: true, user: { id: user.id, username: user.username, profileUrl: user.profile_url } });
+    } else {
+      res.json({ success: false, error: 'Invalid username or password' });
+    }
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, error: 'Update failed' });
+    res.json({ success: false, error: 'Server error' });
   }
 });
 
-// Socket.io
+// Store last 50 messages in memory
+let messages = [];
+
+// Socket.io chat handling
 io.on('connection', (socket) => {
-  console.log('a user connected');
+  socket.emit('chat history', messages);
 
   socket.on('chat message', (msg) => {
+    messages.push(msg);
+    if (messages.length > 50) messages.shift();
     io.emit('chat message', msg);
   });
 
@@ -98,8 +75,5 @@ io.on('connection', (socket) => {
   });
 });
 
-// Start server
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+http.listen(PORT, () => console.log(`Server running on port ${PORT}`));
