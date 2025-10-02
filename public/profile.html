@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>User Profile</title>
+<style>
+  body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+  #profile img { width: 150px; height: 150px; border-radius: 50%; }
+</style>
+</head>
+<body>
+<div id="profile">
+  <img id="profilePic" src="https://via.placeholder.com/150" alt="Profile Picture">
+  <h2 id="username"></h2>
+</div>
+
+<script>
+async function loadProfile() {
+  const pathParts = window.location.pathname.split('/');
+  const username = pathParts[pathParts.length - 1];
+
+  const res = await fetch(`/api/user/${username}`);
+  if (!res.ok) {
+    document.getElementById('profile').innerHTML = '<p>User not found</p>';
+    return;
+  }
+
+  const user = await res.json();
+  document.getElementById('username').textContent = user.username;
+  document.getElementById('profilePic').src = user.profile_url || 'https://via.placeholder.com/150';
+}
+
+loadProfile();
+</script>
+</body>
+</html>
