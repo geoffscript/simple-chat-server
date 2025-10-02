@@ -8,6 +8,7 @@
   #profile img { width: 150px; height: 150px; border-radius: 50%; object-fit: cover; }
   #aboutMeInput { width: 300px; height: 80px; margin-top: 10px; }
   #saveAboutBtn { margin-top: 5px; padding: 5px 10px; }
+  #saveMsg { color: green; margin-top: 5px; }
 </style>
 </head>
 <body>
@@ -17,15 +18,17 @@
   <p id="aboutMe"></p>
   <textarea id="aboutMeInput" placeholder="Write something about yourself..."></textarea><br>
   <button id="saveAboutBtn">Save</button>
+  <div id="saveMsg"></div>
 </div>
 
 <script>
-let currentUser = null; // Will be set if user is logged in
+const DEFAULT_PROFILE = 'https://via.placeholder.com/150';
+let currentUser = null;
 
-// Fetch current logged-in user info (if you already have a way to store it)
+// Fetch current logged-in user info
 async function getCurrentUser() {
   try {
-    const res = await fetch('/api/me'); // Optional endpoint to get logged-in user
+    const res = await fetch('/api/me'); // Returns { username: ... }
     if (res.ok) currentUser = await res.json();
   } catch (err) {
     console.error(err);
@@ -43,25 +46,42 @@ async function loadProfile() {
 
   const user = await res.json();
   document.getElementById('username').textContent = user.username;
-  document.getElementById('profilePic').src = user.profile_url || 'https://via.placeholder.com/150';
-  document.getElementById('aboutMe').textContent = user.about_me || '';
+  document.getElementById('profilePic').src = user.profile_url || DEFAULT_PROFILE;
+  document.getElementById('aboutMe').textContent = user.about_me || 'This user hasn’t written anything yet.';
+
+  const aboutInput = document.getElementById('aboutMeInput');
+  const saveBtn = document.getElementById('saveAboutBtn');
+  const saveMsg = document.getElementById('saveMsg');
 
   // Only show editing if viewing own profile
   if (currentUser && currentUser.username === user.username) {
-    document.getElementById('aboutMeInput').value = user.about_me || '';
-    document.getElementById('saveAboutBtn').onclick = async () => {
-      const aboutText = document.getElementById('aboutMeInput').value;
-      const updateRes = await fetch(`/api/user/${user.username}/about`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ about_me: aboutText })
-      });
-      const updated = await updateRes.json();
-      document.getElementById('aboutMe').textContent = updated.about_me;
+    aboutInput.value = user.about_me || '';
+    aboutInput.style.display = 'block';
+    saveBtn.style.display = 'inline-block';
+
+    saveBtn.onclick = async () => {
+      const aboutText = aboutInput.value;
+      try {
+        const updateRes = await fetch(`/api/user/${user.username}/about`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ about_me: aboutText })
+        });
+        if (updateRes.ok) {
+          const updated = await updateRes.json();
+          document.getElementById('aboutMe').textContent = updated.about_me || 'This user hasn’t written anything yet.';
+          saveMsg.textContent = 'Saved successfully!';
+          setTimeout(() => { saveMsg.textContent = ''; }, 2000);
+        }
+      } catch (err) {
+        console.error(err);
+        saveMsg.textContent = 'Error saving.';
+        setTimeout(() => { saveMsg.textContent = ''; }, 2000);
+      }
     };
   } else {
-    document.getElementById('aboutMeInput').style.display = 'none';
-    document.getElementById('saveAboutBtn').style.display = 'none';
+    aboutInput.style.display = 'none';
+    saveBtn.style.display = 'none';
   }
 }
 
