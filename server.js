@@ -30,13 +30,14 @@ app.post("/register", async (req, res) => {
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      `INSERT INTO users (username, password_hash, profile_url) VALUES ($1, $2, $3) RETURNING id, username, profile_url`,
+      `INSERT INTO users (username, password_hash, profile_url) VALUES ($1, $2, $3) RETURNING id, username, profile_url, about_me`,
       [username, hashedPassword, profileUrl || ""]
     );
     const user = {
       id: result.rows[0].id,
       username: result.rows[0].username,
       profileUrl: result.rows[0].profile_url,
+      aboutMe: result.rows[0].about_me || "",
     };
     res.json({ success: true, user });
   } catch (err) {
@@ -62,6 +63,7 @@ app.post("/login", async (req, res) => {
       id: userDb.id,
       username: userDb.username,
       profileUrl: userDb.profile_url || "",
+      aboutMe: userDb.about_me || "",
     };
     res.json({ success: true, user });
   } catch (err) {
@@ -75,7 +77,7 @@ app.get("/api/user/:username", async (req, res) => {
   const { username } = req.params;
   try {
     const result = await pool.query(
-      `SELECT username, profile_url FROM users WHERE username = $1`,
+      `SELECT username, profile_url, about_me FROM users WHERE username = $1`,
       [username]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: "User not found" });
@@ -84,6 +86,31 @@ app.get("/api/user/:username", async (req, res) => {
     console.error(err);
     res.status(500).json({ error: "Server error" });
   }
+});
+
+// Update "About Me" for logged-in user
+app.post("/api/user/:username/about", async (req, res) => {
+  const { username } = req.params;
+  const { about_me } = req.body;
+
+  // In a real app, check session/authentication here
+  try {
+    const result = await pool.query(
+      `UPDATE users SET about_me = $1 WHERE username = $2 RETURNING username, profile_url, about_me`,
+      [about_me, username]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: "User not found" });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Optional endpoint to get logged-in user
+app.get("/api/me", async (req, res) => {
+  // For now, this is a placeholder; in real apps, you'd check a session or JWT
+  res.status(200).json({ username: null }); 
 });
 
 // Serve profile page
