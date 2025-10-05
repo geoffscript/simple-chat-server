@@ -66,7 +66,7 @@ const balanceDisplay = document.getElementById('balanceDisplay');
 const gambleBtn = document.getElementById('gambleBtn');
 const DEFAULT_PROFILE = 'https://via.placeholder.com/30';
 
-// Auto-login from session
+// Auto-login
 (async () => {
   try {
     const res = await fetch('/api/me');
@@ -132,7 +132,7 @@ function loginAs(user) {
   updateBalance();
 }
 
-// Update balance display
+// Update balance
 function updateBalance() {
   balanceDisplay.textContent = `Balance: ${currentUser.balance}`;
 }
@@ -151,7 +151,7 @@ document.getElementById('messageForm').addEventListener('submit', e => {
   msgInput.value = '';
 });
 
-// Gambling
+// Gamble button
 gambleBtn.addEventListener('click', async () => {
   if (!currentUser) return;
   const amountStr = prompt("Enter amount to gamble:");
@@ -178,7 +178,6 @@ gambleBtn.addEventListener('click', async () => {
       profileUrl: currentUser.profileUrl,
       text: msgText
     });
-
   } catch (err) { console.error(err); }
 });
 
