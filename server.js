@@ -87,7 +87,10 @@ app.get("/api/me", (req, res) => {
 app.get("/api/user/:username", async (req, res) => {
   const { username } = req.params;
   try {
-    const result = await pool.query(`SELECT username, profile_url, about_me, balance FROM users WHERE username=$1`, [username]);
+    const result = await pool.query(
+      `SELECT username, profile_url, about_me, balance FROM users WHERE username=$1`,
+      [username]
+    );
     if (!result.rows.length) return res.status(404).json({ error: "User not found" });
     const user = result.rows[0];
     if (!user.about_me) user.about_me = DEFAULT_ABOUT_ME;
@@ -114,7 +117,7 @@ app.post("/api/user/:username/about", async (req, res) => {
 // --- Profile page ---
 app.get("/profile/:username", (req, res) => { res.sendFile(path.join(__dirname, "public/profile.html")); });
 
-// --- Chat and gamble ---
+// --- Chat and /gamble ---
 let messages = [];
 
 io.on("connection", (socket) => {
@@ -132,7 +135,7 @@ io.on("connection", (socket) => {
         return;
       }
 
-      // Fetch balance
+      // Fetch balance from DB
       const result = await pool.query(`SELECT balance FROM users WHERE username=$1`, [msg.username]);
       if (!result.rows.length) return;
       let balance = Number(result.rows[0].balance);
@@ -142,12 +145,14 @@ io.on("connection", (socket) => {
         return;
       }
 
+      // Gamble 50/50
       const win = Math.random() < 0.5;
       balance = win ? balance + amount : balance - amount;
 
+      // Update DB
       await pool.query(`UPDATE users SET balance=$1 WHERE username=$2`, [balance, msg.username]);
 
-      // Update session
+      // Update session if applicable
       if (socket.request.session?.user && socket.request.session.user.username === msg.username) {
         socket.request.session.user.balance = balance;
       }
