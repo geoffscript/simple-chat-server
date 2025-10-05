@@ -125,7 +125,6 @@ io.on("connection", (socket) => {
   socket.emit("chat history", messages);
 
   socket.on("chat message", async (msg) => {
-    // Handle /gamble command
     if (msg.text.startsWith("/gamble")) {
       if (!msg.username) return;
       const parts = msg.text.split(" ");
@@ -157,10 +156,15 @@ io.on("connection", (socket) => {
         socket.request.session.user.balance = balance;
       }
 
+      // Emit System message
       const resultMsg = win
-        ? `You won ${amount}! New balance: ${balance}`
-        : `You lost ${amount}! New balance: ${balance}`;
+        ? `You won ${amount}!`
+        : `You lost ${amount}!`;
       socket.emit("chat message", { username: "System", profileUrl: "", text: resultMsg });
+
+      // NEW: Emit updated balance to user
+      socket.emit("update balance", { balance });
+
       return;
     }
 
