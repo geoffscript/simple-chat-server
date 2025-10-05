@@ -50,6 +50,11 @@
     margin-top: 5px;
   }
 
+  #balance {
+    font-weight: bold;
+    margin: 5px 0;
+  }
+
   #logoutBtn {
     margin-top: 15px;
     background: #f44336;
@@ -71,6 +76,7 @@
 <div id="profile">
   <img id="profilePic" src="https://via.placeholder.com/150" alt="Profile Picture">
   <h2 id="username"></h2>
+  <p id="balance"></p>
   <p id="editNotice"></p>
   <p id="aboutMe"></p>
   <textarea id="aboutMeInput" placeholder="Write something about yourself..."></textarea><br>
@@ -107,6 +113,7 @@ async function loadProfile() {
   document.getElementById('username').textContent = user.username;
   document.getElementById('profilePic').src = user.profile_url || DEFAULT_PROFILE;
   document.getElementById('aboutMe').textContent = user.about_me || 'This user hasn’t written anything yet.';
+  document.getElementById('balance').textContent = `Balance: ${user.balance ?? 0}`;
 
   const aboutInput = document.getElementById('aboutMeInput');
   const saveBtn = document.getElementById('saveAboutBtn');
@@ -153,9 +160,7 @@ async function loadProfile() {
     };
 
     // Back to Chat
-    backBtn.onclick = () => {
-      window.location.href = '/';
-    };
+    backBtn.onclick = () => window.location.href = '/';
 
   } else {
     // Viewing someone else's profile
@@ -164,9 +169,7 @@ async function loadProfile() {
     logoutBtn.style.display = 'none';
     backBtn.style.display = currentUser ? 'inline-block' : 'none';
     editNotice.textContent = '';
-    if (currentUser) {
-      backBtn.onclick = () => { window.location.href = '/'; };
-    }
+    if (currentUser) backBtn.onclick = () => window.location.href = '/';
   }
 }
 
