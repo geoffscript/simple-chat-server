@@ -13,7 +13,7 @@ body { font-family: Arial, sans-serif; }
 #userBar a { margin-left: 10px; color: #007bff; text-decoration: none; }
 #userBar a:hover { text-decoration: underline; }
 #balanceDisplay { margin-left: 10px; font-weight: bold; }
-#logoutBtn, #gambleBtn { margin-left: 10px; padding: 2px 8px; cursor: pointer; }
+#logoutBtn { margin-left: 10px; padding: 2px 8px; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -40,7 +40,6 @@ body { font-family: Arial, sans-serif; }
     Welcome, <span id="currentUser"></span> |
     <a id="profileLink" href="#">View My Profile</a> |
     <span id="balanceDisplay">Balance: 0</span>
-    <button id="gambleBtn">/gamble</button>
     <button id="logoutBtn">Logout</button>
   </div>
 
@@ -63,7 +62,6 @@ const currentUserSpan = document.getElementById('currentUser');
 const profileLink = document.getElementById('profileLink');
 const messagesUl = document.getElementById('messages');
 const balanceDisplay = document.getElementById('balanceDisplay');
-const gambleBtn = document.getElementById('gambleBtn');
 const DEFAULT_PROFILE = 'https://via.placeholder.com/30';
 
 // Auto-login
@@ -151,34 +149,12 @@ document.getElementById('messageForm').addEventListener('submit', e => {
   msgInput.value = '';
 });
 
-// Gamble button
-gambleBtn.addEventListener('click', async () => {
-  if (!currentUser) return;
-  const amountStr = prompt("Enter amount to gamble:");
-  const amount = parseInt(amountStr);
-  if (isNaN(amount) || amount <= 0) return alert("Invalid amount.");
-  try {
-    const res = await fetch('/api/gamble', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount })
-    });
-    const data = await res.json();
-    if (!res.ok) { alert(data.error); return; }
-
+// Update balance from server after /gamble
+socket.on("update balance", data => {
+  if (currentUser) {
     currentUser.balance = Number(data.balance);
     updateBalance();
-
-    const msgText = data.won 
-      ? `${currentUser.username} gambled and won $${data.change}!`
-      : `${currentUser.username} gambled and lost $${Math.abs(data.change)}.`;
-
-    socket.emit('chat message', {
-      username: currentUser.username,
-      profileUrl: currentUser.profileUrl,
-      text: msgText
-    });
-  } catch (err) { console.error(err); }
+  }
 });
 
 // Load chat history
