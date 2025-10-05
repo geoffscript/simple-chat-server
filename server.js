@@ -77,10 +77,33 @@ app.post("/login", async (req, res) => {
 // --- Logout ---
 app.post("/logout", (req, res) => { req.session.destroy(); res.json({ success: true }); });
 
-// --- Current user ---
-app.get("/api/me", (req, res) => {
-  if (req.session.user) res.json(req.session.user);
-  else res.status(200).json({ username: null });
+// --- Current user (fetch fresh from DB) ---
+app.get("/api/me", async (req, res) => {
+  if (!req.session.user) return res.status(200).json({ username: null });
+
+  try {
+    const result = await pool.query(
+      `SELECT username, profile_url, about_me, balance FROM users WHERE username=$1`,
+      [req.session.user.username]
+    );
+    if (!result.rows.length) return res.status(404).json({ username: null });
+
+    const user = result.rows[0];
+    if (!user.about_me) user.about_me = DEFAULT_ABOUT_ME;
+
+    // Update session with latest balance
+    req.session.user.balance = Number(user.balance);
+
+    res.json({
+      username: user.username,
+      profileUrl: user.profile_url || "",
+      aboutMe: user.about_me,
+      balance: Number(user.balance)
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ username: null });
+  }
 });
 
 // --- Profile ---
@@ -162,9 +185,8 @@ io.on("connection", (socket) => {
         : `You lost ${amount}!`;
       socket.emit("chat message", { username: "System", profileUrl: "", text: resultMsg });
 
-      // NEW: Emit updated balance to user
+      // Emit updated balance to user
       socket.emit("update balance", { balance });
-
       return;
     }
 
