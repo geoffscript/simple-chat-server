@@ -9,6 +9,9 @@ body { font-family: Arial, sans-serif; }
 .message { margin-bottom: 10px; display: flex; align-items: center; }
 .message img { width: 30px; height: 30px; border-radius: 50%; margin-right: 5px; object-fit: cover; }
 #messages { list-style: none; padding: 0; max-height: 400px; overflow-y: auto; }
+#userBar { margin-bottom: 10px; }
+#userBar a { margin-left: 10px; color: #007bff; text-decoration: none; }
+#userBar a:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -31,10 +34,14 @@ body { font-family: Arial, sans-serif; }
 </div>
 
 <div id="chat">
-  <div>
-    Logged in as <span id="currentUser"></span> <button id="logoutBtn">Logout</button>
+  <div id="userBar">
+    Welcome, <span id="currentUser"></span> |
+    <a id="profileLink" href="#">View My Profile</a> |
+    <button id="logoutBtn">Logout</button>
   </div>
+
   <ul id="messages"></ul>
+
   <form id="messageForm">
     <input id="msgInput" autocomplete="off" placeholder="Type a message..." required />
     <button>Send</button>
@@ -49,8 +56,25 @@ let currentUser = null;
 const authDiv = document.getElementById('auth');
 const chatDiv = document.getElementById('chat');
 const currentUserSpan = document.getElementById('currentUser');
+const profileLink = document.getElementById('profileLink');
 const messagesUl = document.getElementById('messages');
 const DEFAULT_PROFILE = 'https://via.placeholder.com/30';
+
+// Try auto-login from session
+(async () => {
+  try {
+    const res = await fetch('/api/me');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.username) {
+        // Logged in from previous session
+        loginAs({ username: data.username });
+      }
+    }
+  } catch (err) {
+    console.error(err);
+  }
+})();
 
 // Register
 document.getElementById('registerForm').addEventListener('submit', async e => {
@@ -90,17 +114,20 @@ document.getElementById('loginForm').addEventListener('submit', async e => {
 });
 
 // Logout
-document.getElementById('logoutBtn').addEventListener('click', () => {
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+  await fetch('/logout', { method: 'POST' });
   currentUser = null;
   chatDiv.style.display = 'none';
   authDiv.style.display = 'block';
   messagesUl.innerHTML = '';
 });
 
+// Login function
 function loginAs(user) {
   currentUser = user;
   currentUser.profileUrl = currentUser.profileUrl || DEFAULT_PROFILE;
   currentUserSpan.textContent = currentUser.username;
+  profileLink.href = `/profile/${currentUser.username}`;
   authDiv.style.display = 'none';
   chatDiv.style.display = 'block';
 }
@@ -132,12 +159,10 @@ function addMessage(msg) {
   const li = document.createElement('li');
   li.className = 'message';
 
-  // Profile image with fallback
   const img = document.createElement('img');
   img.src = msg.profileUrl || DEFAULT_PROFILE;
   img.onerror = () => { img.src = DEFAULT_PROFILE; };
 
-  // Username clickable to profile page
   const text = document.createElement('span');
   text.innerHTML = `<strong><a href="/profile/${msg.username}">${msg.username}</a>:</strong> ${msg.text}`;
 
