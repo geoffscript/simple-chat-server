@@ -11,17 +11,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
 
-// --- Sessions ---
-app.use(
-  session({
-    secret: "supersecretkey",
-    resave: false,
-    saveUninitialized: true,
-    cookie: { maxAge: 7 * 24 * 60 * 60 * 1000, secure: false },
-  })
-);
+app.use(session({
+  secret: "supersecretkey",
+  resave: false,
+  saveUninitialized: true,
+  cookie: { maxAge: 7 * 24 * 60 * 60 * 1000, secure: false },
+}));
 
-// --- PostgreSQL Connection ---
 const pool = new Pool({
   host: "dpg-d3e1sqje5dus73fcfl90-a.oregon-postgres.render.com",
   user: "chat_db_jl78_user",
@@ -32,9 +28,8 @@ const pool = new Pool({
 });
 
 const DEFAULT_ABOUT_ME = "This user hasn’t written anything yet.";
-const STARTING_BALANCE = 100; // New users start with 100 currency
+const STARTING_BALANCE = 100;
 
-// --- Serve index.html ---
 app.get("/", (req, res) => res.sendFile(path.join(__dirname, "public/index.html")));
 
 // --- Register ---
@@ -44,13 +39,11 @@ app.post("/register", async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query(
       `INSERT INTO users (username, password_hash, profile_url, about_me, balance)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, username, profile_url, about_me, balance`,
+       VALUES ($1,$2,$3,$4,$5) RETURNING id, username, profile_url, about_me, balance`,
       [username, hashedPassword, profileUrl || "", DEFAULT_ABOUT_ME, STARTING_BALANCE]
     );
-    const user = result.rows[0];
-    req.session.user = user;
-    res.json({ success: true, user });
+    req.session.user = result.rows[0];
+    res.json({ success: true, user: result.rows[0] });
   } catch (err) {
     console.error(err);
     if (err.code === "23505") res.json({ success: false, message: "Username taken" });
@@ -62,7 +55,7 @@ app.post("/register", async (req, res) => {
 app.post("/login", async (req, res) => {
   const { username, password } = req.body;
   try {
-    const result = await pool.query(`SELECT * FROM users WHERE username = $1`, [username]);
+    const result = await pool.query(`SELECT * FROM users WHERE username=$1`, [username]);
     if (!result.rows.length) return res.json({ success: false, message: "Invalid username or password" });
     const userDb = result.rows[0];
     const match = await bcrypt.compare(password, userDb.password_hash);
@@ -73,73 +66,55 @@ app.post("/login", async (req, res) => {
       username: userDb.username,
       profileUrl: userDb.profile_url || "",
       aboutMe: userDb.about_me || DEFAULT_ABOUT_ME,
-      balance: userDb.balance || STARTING_BALANCE,
+      balance: Number(userDb.balance ?? STARTING_BALANCE),
     };
 
     req.session.user = user;
     res.json({ success: true, user });
-  } catch (err) {
-    console.error(err);
-    res.json({ success: false, message: "Server error" });
-  }
+  } catch (err) { console.error(err); res.json({ success: false, message: "Server error" }); }
 });
 
 // --- Logout ---
-app.post("/logout", (req, res) => {
-  req.session.destroy();
-  res.json({ success: true });
-});
+app.post("/logout", (req, res) => { req.session.destroy(); res.json({ success: true }); });
 
-// --- Get current logged-in user ---
+// --- Current user ---
 app.get("/api/me", (req, res) => {
   if (req.session.user) res.json(req.session.user);
   else res.status(200).json({ username: null });
 });
 
-// --- Get user profile ---
+// --- Profile ---
 app.get("/api/user/:username", async (req, res) => {
   const { username } = req.params;
   try {
-    const result = await pool.query(
-      `SELECT username, profile_url, about_me, balance FROM users WHERE username = $1`,
-      [username]
-    );
+    const result = await pool.query(`SELECT username, profile_url, about_me, balance FROM users WHERE username=$1`, [username]);
     if (!result.rows.length) return res.status(404).json({ error: "User not found" });
     const user = result.rows[0];
     if (!user.about_me) user.about_me = DEFAULT_ABOUT_ME;
     res.json(user);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Server error" });
-  }
+  } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
 });
 
-// --- Update "About Me" ---
+// --- Update About Me ---
 app.post("/api/user/:username/about", async (req, res) => {
   const { username } = req.params;
   const { about_me } = req.body;
-  if (!req.session.user || req.session.user.username !== username)
-    return res.status(403).json({ error: "Not authorized" });
+  if (!req.session.user || req.session.user.username !== username) return res.status(403).json({ error: "Not authorized" });
   try {
     const result = await pool.query(
-      `UPDATE users SET about_me = $1 WHERE username = $2 RETURNING username, profile_url, about_me`,
+      `UPDATE users SET about_me=$1 WHERE username=$2 RETURNING username, profile_url, about_me`,
       [about_me, username]
     );
     if (!result.rows.length) return res.status(404).json({ error: "User not found" });
     req.session.user.aboutMe = about_me;
     res.json(result.rows[0]);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Server error" });
-  }
+  } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
 });
 
-// --- Serve profile page ---
-app.get("/profile/:username", (req, res) => {
-  res.sendFile(path.join(__dirname, "public/profile.html"));
-});
+// --- Profile page ---
+app.get("/profile/:username", (req, res) => { res.sendFile(path.join(__dirname, "public/profile.html")); });
 
-// --- Chat logic with /gamble ---
+// --- Chat and gamble ---
 let messages = [];
 
 io.on("connection", (socket) => {
@@ -157,24 +132,25 @@ io.on("connection", (socket) => {
         return;
       }
 
-      // Fetch user balance
-      const result = await pool.query(`SELECT balance FROM users WHERE username = $1`, [msg.username]);
+      // Fetch balance
+      const result = await pool.query(`SELECT balance FROM users WHERE username=$1`, [msg.username]);
       if (!result.rows.length) return;
-      let balance = result.rows[0].balance;
+      let balance = Number(result.rows[0].balance);
 
       if (amount > balance) {
         socket.emit("chat message", { username: "System", profileUrl: "", text: "You don't have enough money to gamble." });
         return;
       }
 
-      // Gamble: 50/50 chance to win or lose
       const win = Math.random() < 0.5;
       balance = win ? balance + amount : balance - amount;
-      await pool.query(`UPDATE users SET balance = $1 WHERE username = $2`, [balance, msg.username]);
 
-      // Update session if connected user
-      if (socket.request.session && socket.request.session.user && socket.request.session.user.username === msg.username)
+      await pool.query(`UPDATE users SET balance=$1 WHERE username=$2`, [balance, msg.username]);
+
+      // Update session
+      if (socket.request.session?.user && socket.request.session.user.username === msg.username) {
         socket.request.session.user.balance = balance;
+      }
 
       const resultMsg = win
         ? `You won ${amount}! New balance: ${balance}`
@@ -189,9 +165,7 @@ io.on("connection", (socket) => {
     io.emit("chat message", msg);
   });
 
-  socket.on("disconnect", () => {
-    console.log("user disconnected");
-  });
+  socket.on("disconnect", () => { console.log("user disconnected"); });
 });
 
 const PORT = process.env.PORT || 3000;
