@@ -13,7 +13,7 @@ body { font-family: Arial, sans-serif; }
 #userBar a { margin-left: 10px; color: #007bff; text-decoration: none; }
 #userBar a:hover { text-decoration: underline; }
 #balanceDisplay { margin-left: 10px; font-weight: bold; }
-#gambleBtn { margin-left: 10px; padding: 2px 8px; cursor: pointer; }
+#logoutBtn, #gambleBtn { margin-left: 10px; padding: 2px 8px; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -124,7 +124,7 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
 function loginAs(user) {
   currentUser = user;
   currentUser.profileUrl = currentUser.profileUrl || DEFAULT_PROFILE;
-  currentUser.balance = user.balance ?? 100; // starting balance
+  currentUser.balance = Number(user.balance ?? 100);
   currentUserSpan.textContent = currentUser.username;
   profileLink.href = `/profile/${currentUser.username}`;
   authDiv.style.display = 'none';
@@ -154,12 +154,19 @@ document.getElementById('messageForm').addEventListener('submit', e => {
 // Gambling
 gambleBtn.addEventListener('click', async () => {
   if (!currentUser) return;
+  const amountStr = prompt("Enter amount to gamble:");
+  const amount = parseInt(amountStr);
+  if (isNaN(amount) || amount <= 0) return alert("Invalid amount.");
   try {
-    const res = await fetch('/api/gamble', { method: 'POST' });
+    const res = await fetch('/api/gamble', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount })
+    });
     const data = await res.json();
     if (!res.ok) { alert(data.error); return; }
 
-    currentUser.balance = data.balance;
+    currentUser.balance = Number(data.balance);
     updateBalance();
 
     const msgText = data.won 
