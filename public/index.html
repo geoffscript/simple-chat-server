@@ -12,6 +12,8 @@ body { font-family: Arial, sans-serif; }
 #userBar { margin-bottom: 10px; }
 #userBar a { margin-left: 10px; color: #007bff; text-decoration: none; }
 #userBar a:hover { text-decoration: underline; }
+#balanceDisplay { margin-left: 10px; font-weight: bold; }
+#gambleBtn { margin-left: 10px; padding: 2px 8px; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -37,6 +39,8 @@ body { font-family: Arial, sans-serif; }
   <div id="userBar">
     Welcome, <span id="currentUser"></span> |
     <a id="profileLink" href="#">View My Profile</a> |
+    <span id="balanceDisplay">Balance: 0</span>
+    <button id="gambleBtn">/gamble</button>
     <button id="logoutBtn">Logout</button>
   </div>
 
@@ -58,22 +62,19 @@ const chatDiv = document.getElementById('chat');
 const currentUserSpan = document.getElementById('currentUser');
 const profileLink = document.getElementById('profileLink');
 const messagesUl = document.getElementById('messages');
+const balanceDisplay = document.getElementById('balanceDisplay');
+const gambleBtn = document.getElementById('gambleBtn');
 const DEFAULT_PROFILE = 'https://via.placeholder.com/30';
 
-// Try auto-login from session
+// Auto-login from session
 (async () => {
   try {
     const res = await fetch('/api/me');
     if (res.ok) {
       const data = await res.json();
-      if (data.username) {
-        // Logged in from previous session
-        loginAs({ username: data.username });
-      }
+      if (data.username) loginAs(data);
     }
-  } catch (err) {
-    console.error(err);
-  }
+  } catch (err) { console.error(err); }
 })();
 
 // Register
@@ -90,10 +91,7 @@ document.getElementById('registerForm').addEventListener('submit', async e => {
     })
   });
   const data = await res.json();
-  if (data.success) loginAs(data.user || {
-    username: document.getElementById('regUsername').value,
-    profileUrl: profileUrlInput || DEFAULT_PROFILE
-  });
+  if (data.success) loginAs(data.user);
   else alert(data.message || 'Error');
 });
 
@@ -126,10 +124,17 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
 function loginAs(user) {
   currentUser = user;
   currentUser.profileUrl = currentUser.profileUrl || DEFAULT_PROFILE;
+  currentUser.balance = user.balance ?? 100; // starting balance
   currentUserSpan.textContent = currentUser.username;
   profileLink.href = `/profile/${currentUser.username}`;
   authDiv.style.display = 'none';
   chatDiv.style.display = 'block';
+  updateBalance();
+}
+
+// Update balance display
+function updateBalance() {
+  balanceDisplay.textContent = `Balance: ${currentUser.balance}`;
 }
 
 // Send message
@@ -144,6 +149,30 @@ document.getElementById('messageForm').addEventListener('submit', e => {
   };
   socket.emit('chat message', msg);
   msgInput.value = '';
+});
+
+// Gambling
+gambleBtn.addEventListener('click', async () => {
+  if (!currentUser) return;
+  try {
+    const res = await fetch('/api/gamble', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error); return; }
+
+    currentUser.balance = data.balance;
+    updateBalance();
+
+    const msgText = data.won 
+      ? `${currentUser.username} gambled and won $${data.change}!`
+      : `${currentUser.username} gambled and lost $${Math.abs(data.change)}.`;
+
+    socket.emit('chat message', {
+      username: currentUser.username,
+      profileUrl: currentUser.profileUrl,
+      text: msgText
+    });
+
+  } catch (err) { console.error(err); }
 });
 
 // Load chat history
