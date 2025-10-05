@@ -33,7 +33,7 @@
     margin-top: 10px;
   }
 
-  #saveAboutBtn {
+  button {
     margin-top: 5px;
     padding: 5px 10px;
     cursor: pointer;
@@ -52,9 +52,15 @@
 
   #logoutBtn {
     margin-top: 15px;
-    padding: 5px 12px;
-    cursor: pointer;
     background: #f44336;
+    color: white;
+    border: none;
+    border-radius: 5px;
+  }
+
+  #backToChatBtn {
+    margin-top: 10px;
+    background: #2196F3;
     color: white;
     border: none;
     border-radius: 5px;
@@ -71,6 +77,7 @@
   <button id="saveAboutBtn">Save</button>
   <div id="saveMsg"></div>
   <button id="logoutBtn" style="display:none;">Log Out</button>
+  <button id="backToChatBtn" style="display:none;">Back to Chat</button>
 </div>
 
 <script>
@@ -106,6 +113,7 @@ async function loadProfile() {
   const saveMsg = document.getElementById('saveMsg');
   const editNotice = document.getElementById('editNotice');
   const logoutBtn = document.getElementById('logoutBtn');
+  const backBtn = document.getElementById('backToChatBtn');
 
   // If viewing own profile
   if (currentUser && currentUser.username === user.username) {
@@ -114,6 +122,7 @@ async function loadProfile() {
     aboutInput.style.display = 'block';
     saveBtn.style.display = 'inline-block';
     logoutBtn.style.display = 'inline-block';
+    backBtn.style.display = 'inline-block';
 
     // Save About Me
     saveBtn.onclick = async () => {
@@ -143,12 +152,21 @@ async function loadProfile() {
       window.location.href = '/';
     };
 
+    // Back to Chat
+    backBtn.onclick = () => {
+      window.location.href = '/';
+    };
+
   } else {
     // Viewing someone else's profile
     aboutInput.style.display = 'none';
     saveBtn.style.display = 'none';
     logoutBtn.style.display = 'none';
+    backBtn.style.display = currentUser ? 'inline-block' : 'none';
     editNotice.textContent = '';
+    if (currentUser) {
+      backBtn.onclick = () => { window.location.href = '/'; };
+    }
   }
 }
 
