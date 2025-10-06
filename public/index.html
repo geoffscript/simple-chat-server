@@ -2,18 +2,129 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Chat App</title>
 <style>
-body { font-family: Arial, sans-serif; }
-#chat { display: none; }
-.message { margin-bottom: 10px; display: flex; align-items: center; }
-.message img { width: 30px; height: 30px; border-radius: 50%; margin-right: 5px; object-fit: cover; }
-#messages { list-style: none; padding: 0; max-height: 400px; overflow-y: auto; }
-#userBar { margin-bottom: 10px; }
-#userBar a { margin-left: 10px; color: #007bff; text-decoration: none; }
-#userBar a:hover { text-decoration: underline; }
-#balanceDisplay { margin-left: 10px; font-weight: bold; }
-#logoutBtn, #faucetBtn { margin-left: 10px; padding: 2px 8px; cursor: pointer; }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #121212;
+    color: #fff;
+    margin: 0;
+    padding: 0;
+    text-align: center;
+  }
+
+  h2 {
+    margin-top: 0;
+    margin-bottom: 15px;
+  }
+
+  #auth, #chat {
+    max-width: 500px;
+    margin: 50px auto;
+    background: #1e1e1e;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.5);
+  }
+
+  input[type="text"], input[type="password"], textarea {
+    width: 90%;
+    padding: 10px;
+    margin: 5px 0;
+    border-radius: 6px;
+    border: none;
+    outline: none;
+  }
+
+  button {
+    padding: 8px 16px;
+    margin-top: 10px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    background: #2196F3;
+    color: white;
+    font-weight: bold;
+  }
+
+  button:hover {
+    background: #1e88e5;
+  }
+
+  #chat {
+    display: none;
+  }
+
+  #userBar {
+    margin-bottom: 15px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    align-items: center;
+    font-weight: bold;
+  }
+
+  #userBar a {
+    color: #5ab4ff;
+    text-decoration: none;
+  }
+
+  #userBar a:hover {
+    text-decoration: underline;
+  }
+
+  #balanceDisplay {
+    margin-left: 5px;
+  }
+
+  #messages {
+    list-style: none;
+    padding: 0;
+    max-height: 300px;
+    overflow-y: auto;
+    margin-bottom: 10px;
+    text-align: left;
+  }
+
+  .message {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+    background: #2c2c2c;
+    padding: 5px 10px;
+    border-radius: 8px;
+  }
+
+  .message img {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    margin-right: 8px;
+    object-fit: cover;
+  }
+
+  #messageForm input {
+    width: 70%;
+    padding: 10px;
+    border-radius: 6px;
+    border: none;
+    margin-right: 5px;
+  }
+
+  #messageForm button {
+    width: 25%;
+  }
+
+  #faucetBtn {
+    background: #4caf50;
+  }
+
+  #faucetBtn:hover {
+    background: #43a047;
+  }
+
 </style>
 </head>
 <body>
@@ -39,7 +150,7 @@ body { font-family: Arial, sans-serif; }
   <div id="userBar">
     Welcome, <span id="currentUser"></span> |
     <a id="profileLink" href="#">View My Profile</a> |
-    <a id="leaderboardLink" href="/leaderboard.html">View Leaderboard</a> |
+    <a id="leaderboardLink" href="/leaderboard.html">Leaderboard</a> |
     <span id="balanceDisplay">Balance: 0</span>
     <button id="faucetBtn" style="display:none;">Claim $100</button>
     <button id="logoutBtn">Logout</button>
