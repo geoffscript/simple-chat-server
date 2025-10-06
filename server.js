@@ -32,6 +32,13 @@ const pool = new Pool({
 
 const DEFAULT_ABOUT_ME = "This user hasn’t written anything yet.";
 const STARTING_BALANCE = 100;
+const STARTING_XP = 0;
+const STARTING_LEVEL = 1;
+
+// --- XP Helper ---
+function getNextLevelXP(level) {
+  return Math.pow(2, level - 1);
+}
 
 app.get("/", (req, res) => res.sendFile(path.join(__dirname, "public/index.html")));
 
@@ -41,19 +48,13 @@ app.post("/register", async (req, res) => {
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      `INSERT INTO users (username, password_hash, profile_url, about_me, balance)
-       VALUES ($1,$2,$3,$4,$5)
-       RETURNING id, username, profile_url, about_me, balance`,
-      [username, hashedPassword, profileUrl || "", DEFAULT_ABOUT_ME, STARTING_BALANCE]
+      `INSERT INTO users (username, password_hash, profile_url, about_me, balance, xp, level)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       RETURNING id, username, profile_url, about_me, balance, xp, level`,
+      [username, hashedPassword, profileUrl || "", DEFAULT_ABOUT_ME, STARTING_BALANCE, STARTING_XP, STARTING_LEVEL]
     );
-    req.session.user = {
-      id: result.rows[0].id,
-      username: result.rows[0].username,
-      profileUrl: result.rows[0].profile_url || "",
-      aboutMe: result.rows[0].about_me || DEFAULT_ABOUT_ME,
-      balance: Number(result.rows[0].balance)
-    };
-    res.json({ success: true, user: req.session.user });
+    req.session.user = result.rows[0];
+    res.json({ success: true, user: result.rows[0] });
   } catch (err) {
     console.error(err);
     if (err.code === "23505") res.json({ success: false, message: "Username taken" });
@@ -66,13 +67,11 @@ app.post("/login", async (req, res) => {
   const { username, password } = req.body;
   try {
     const result = await pool.query(`SELECT * FROM users WHERE username=$1`, [username]);
-    if (!result.rows.length)
-      return res.json({ success: false, message: "Invalid username or password" });
+    if (!result.rows.length) return res.json({ success: false, message: "Invalid username or password" });
 
     const userDb = result.rows[0];
     const match = await bcrypt.compare(password, userDb.password_hash);
-    if (!match)
-      return res.json({ success: false, message: "Invalid username or password" });
+    if (!match) return res.json({ success: false, message: "Invalid username or password" });
 
     const user = {
       id: userDb.id,
@@ -80,6 +79,8 @@ app.post("/login", async (req, res) => {
       profileUrl: userDb.profile_url || "",
       aboutMe: userDb.about_me || DEFAULT_ABOUT_ME,
       balance: Number(userDb.balance ?? STARTING_BALANCE),
+      xp: Number(userDb.xp ?? STARTING_XP),
+      level: Number(userDb.level ?? STARTING_LEVEL)
     };
 
     req.session.user = user;
@@ -100,18 +101,25 @@ app.get("/api/me", async (req, res) => {
   if (!req.session.user) return res.status(200).json({ username: null });
   try {
     const result = await pool.query(
-      `SELECT username, profile_url, about_me, balance FROM users WHERE username=$1`,
+      `SELECT username, profile_url, about_me, balance, xp, level FROM users WHERE username=$1`,
       [req.session.user.username]
     );
     if (!result.rows.length) return res.status(404).json({ username: null });
 
     const user = result.rows[0];
-    req.session.user.balance = Number(user.balance);
+    req.session.user = {
+      ...req.session.user,
+      balance: Number(user.balance),
+      xp: Number(user.xp),
+      level: Number(user.level)
+    };
     res.json({
       username: user.username,
       profileUrl: user.profile_url || "",
       aboutMe: user.about_me || DEFAULT_ABOUT_ME,
       balance: Number(user.balance),
+      xp: Number(user.xp),
+      level: Number(user.level)
     });
   } catch (err) {
     console.error(err);
@@ -147,12 +155,13 @@ app.post("/faucet", async (req, res) => {
 app.get("/api/leaderboard", async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT username, balance, profile_url FROM users ORDER BY balance DESC LIMIT 10`
+      `SELECT username, balance, profile_url, level FROM users ORDER BY balance DESC LIMIT 10`
     );
     res.json(result.rows.map(u => ({
       username: u.username,
       balance: Number(u.balance),
-      profileUrl: u.profile_url || ""
+      profileUrl: u.profile_url || "",
+      level: Number(u.level ?? STARTING_LEVEL)
     })));
   } catch (err) {
     console.error("Error fetching leaderboard:", err);
@@ -160,12 +169,12 @@ app.get("/api/leaderboard", async (req, res) => {
   }
 });
 
-// --- Profile API (fixed camelCase for frontend) ---
+// --- Profile API ---
 app.get("/api/user/:username", async (req, res) => {
   const { username } = req.params;
   try {
     const result = await pool.query(
-      `SELECT username, profile_url, about_me, balance FROM users WHERE username=$1`,
+      `SELECT username, profile_url, about_me, balance, xp, level FROM users WHERE username=$1`,
       [username]
     );
     if (!result.rows.length) return res.status(404).json({ error: "User not found" });
@@ -175,7 +184,9 @@ app.get("/api/user/:username", async (req, res) => {
       username: user.username,
       profileUrl: user.profile_url || "",
       aboutMe: user.about_me || DEFAULT_ABOUT_ME,
-      balance: Number(user.balance ?? 0)
+      balance: Number(user.balance),
+      xp: Number(user.xp ?? STARTING_XP),
+      level: Number(user.level ?? STARTING_LEVEL)
     });
   } catch (err) {
     console.error(err);
@@ -214,7 +225,7 @@ app.get("/profile/:username", (req, res) => {
   res.sendFile(path.join(__dirname, "public/profile.html"));
 });
 
-// --- Chat & /gamble ---
+// --- Chat & /gamble with XP/level ---
 let messages = [];
 
 io.on("connection", (socket) => {
@@ -222,59 +233,58 @@ io.on("connection", (socket) => {
   socket.emit("chat history", messages);
 
   socket.on("chat message", async (msg) => {
-    if (msg.text.startsWith("/gamble")) {
-      if (!msg.username) return;
+    if (!msg.username) return;
 
+    // --- /gamble ---
+    if (msg.text.startsWith("/gamble")) {
       const parts = msg.text.split(" ");
       const amount = parseInt(parts[1]);
       if (isNaN(amount) || amount <= 0) {
-        socket.emit("chat message", {
-          username: "System",
-          profileUrl: "",
-          text: "Invalid gamble amount.",
-        });
+        socket.emit("chat message", { username: "System", profileUrl: "", text: "Invalid gamble amount." });
         return;
       }
 
       try {
         const result = await pool.query(`SELECT balance FROM users WHERE username=$1`, [msg.username]);
         if (!result.rows.length) return;
-
         let balance = Number(result.rows[0].balance);
         if (amount > balance) {
-          socket.emit("chat message", {
-            username: "System",
-            profileUrl: "",
-            text: "You don't have enough money to gamble.",
-          });
+          socket.emit("chat message", { username: "System", profileUrl: "", text: "You don't have enough money to gamble." });
           return;
         }
-
         const win = Math.random() < 0.5;
         balance = win ? balance + amount : balance - amount;
-
         await pool.query(`UPDATE users SET balance=$1 WHERE username=$2`, [balance, msg.username]);
-        if (socket.request.session?.user?.username === msg.username)
-          socket.request.session.user.balance = balance;
-
-        socket.emit("chat message", {
-          username: "System",
-          profileUrl: "",
-          text: win ? `You won ${amount}!` : `You lost ${amount}!`,
-        });
+        if (socket.request.session?.user?.username === msg.username) socket.request.session.user.balance = balance;
+        socket.emit("chat message", { username: "System", profileUrl: "", text: win ? `You won ${amount}!` : `You lost ${amount}!` });
         socket.emit("update balance", { balance });
       } catch (err) {
         console.error("Gamble error:", err);
-        socket.emit("chat message", {
-          username: "System",
-          profileUrl: "",
-          text: "An error occurred during gambling.",
-        });
+        socket.emit("chat message", { username: "System", profileUrl: "", text: "An error occurred during gambling." });
       }
       return;
     }
 
-    // Normal chat
+    // --- XP / Leveling ---
+    try {
+      const userRes = await pool.query(`SELECT xp, level FROM users WHERE username=$1`, [msg.username]);
+      if (userRes.rows.length) {
+        let { xp, level } = userRes.rows[0];
+        xp += 1;
+        const nextXP = getNextLevelXP(level);
+        if (xp >= nextXP) {
+          level += 1;
+          socket.emit("chat message", { username: "System", profileUrl: "", text: `${msg.username} reached Level ${level}! 🎉` });
+        }
+        await pool.query(`UPDATE users SET xp=$1, level=$2 WHERE username=$3`, [xp, level, msg.username]);
+        if (socket.request.session?.user?.username === msg.username) {
+          socket.request.session.user.xp = xp;
+          socket.request.session.user.level = level;
+        }
+        msg.level = level;
+      }
+    } catch (err) { console.error("XP error:", err); }
+
     messages.push(msg);
     if (messages.length > 50) messages.shift();
     io.emit("chat message", msg);
