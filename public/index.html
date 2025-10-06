@@ -124,7 +124,6 @@
   #faucetBtn:hover {
     background: #43a047;
   }
-
 </style>
 </head>
 <body>
@@ -313,16 +312,19 @@ function addMessage(msg) {
   const li = document.createElement('li');
   li.className = 'message';
 
-  const img = document.createElement('img');
-  img.src = msg.profileUrl || DEFAULT_PROFILE;
-  img.onerror = () => { img.src = DEFAULT_PROFILE; };
-
   const text = document.createElement('span');
   const safeText = escapeHtml(msg.text);
   const levelText = msg.level ? ` (Lv ${msg.level})` : '';
-  text.innerHTML = `<strong><a href="/profile/${msg.username}">${msg.username}</a>${levelText}:</strong> ${safeText}`;
+  text.innerHTML = `<strong>${msg.username === 'System' ? 'System' : `<a href="/profile/${msg.username}">${msg.username}</a>${levelText}`}</strong>: ${safeText}`;
 
-  li.appendChild(img);
+  // Only add image if not a system message
+  if (msg.username !== 'System') {
+    const img = document.createElement('img');
+    img.src = msg.profileUrl || DEFAULT_PROFILE;
+    img.onerror = () => { img.src = DEFAULT_PROFILE; };
+    li.appendChild(img);
+  }
+
   li.appendChild(text);
   messagesUl.appendChild(li);
   messagesUl.scrollTop = messagesUl.scrollHeight;
