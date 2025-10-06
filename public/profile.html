@@ -27,6 +27,17 @@
     margin-bottom: 10px;
   }
 
+  #username {
+    font-size: 24px;
+    font-weight: bold;
+  }
+
+  #level {
+    font-size: 18px;
+    color: #555;
+    margin-bottom: 10px;
+  }
+
   #aboutMeInput {
     width: 300px;
     height: 80px;
@@ -76,6 +87,7 @@
 <div id="profile">
   <img id="profilePic" src="https://via.placeholder.com/150" alt="Profile Picture">
   <h2 id="username"></h2>
+  <p id="level">(Lv 1)</p>
   <p id="balance"></p>
   <p id="editNotice"></p>
   <p id="aboutMe"></p>
@@ -114,6 +126,7 @@ async function loadProfile() {
   document.getElementById('profilePic').src = user.profileUrl || DEFAULT_PROFILE;
   document.getElementById('aboutMe').textContent = user.aboutMe || 'This user hasn’t written anything yet.';
   document.getElementById('balance').textContent = `Balance: ${user.balance ?? 0}`;
+  document.getElementById('level').textContent = `(Lv ${user.level ?? 1})`;
 
   const aboutInput = document.getElementById('aboutMeInput');
   const saveBtn = document.getElementById('saveAboutBtn');
