@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Leaderboard</title>
-  <link rel="stylesheet" href="/style.css" />
   <style>
     body {
       font-family: sans-serif;
@@ -39,6 +38,7 @@
       height: 40px;
       border-radius: 50%;
       margin-right: 10px;
+      object-fit: cover;
     }
     .left {
       display: flex;
@@ -48,6 +48,9 @@
       color: #5ab4ff;
       text-decoration: none;
     }
+    a:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -55,21 +58,29 @@
   <div class="leaderboard" id="leaderboard"></div>
 
   <script>
-    async function loadLeaderboard() {
-      const res = await fetch('/api/leaderboard');
-      const users = await res.json();
-      const container = document.getElementById('leaderboard');
+    const DEFAULT_PROFILE = 'https://via.placeholder.com/40';
 
-      container.innerHTML = users.map((user, i) => `
-        <div class="entry">
-          <div class="left">
-            <span>${i + 1}.</span>
-            <img src="${user.profile_url || '/default.png'}" alt="${user.username}">
-            <a href="/profile/${user.username}">@${user.username}</a>
+    async function loadLeaderboard() {
+      try {
+        const res = await fetch('/api/leaderboard');
+        if (!res.ok) throw new Error('Failed to fetch leaderboard');
+        const users = await res.json();
+        const container = document.getElementById('leaderboard');
+
+        container.innerHTML = users.map((user, i) => `
+          <div class="entry">
+            <div class="left">
+              <span>${i + 1}.</span>
+              <img src="${user.profileUrl || DEFAULT_PROFILE}" alt="${user.username}">
+              <a href="/profile/${user.username}">@${user.username}</a>
+            </div>
+            <span>$${user.balance}</span>
           </div>
-          <span>$${user.balance}</span>
-        </div>
-      `).join('');
+        `).join('');
+      } catch (err) {
+        console.error(err);
+        document.getElementById('leaderboard').innerHTML = '<p>Error loading leaderboard.</p>';
+      }
     }
 
     loadLeaderboard();
