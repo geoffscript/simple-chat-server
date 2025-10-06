@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Leaderboard</title>
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #121212;
+      color: #fff;
+      text-align: center;
+      padding: 40px;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    .leaderboard {
+      max-width: 500px;
+      margin: 0 auto;
+      background: #1e1e1e;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.4);
+    }
+    .entry {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px;
+      border-bottom: 1px solid #333;
+    }
+    .entry:last-child {
+      border-bottom: none;
+    }
+    .entry img {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      margin-right: 10px;
+    }
+    .left {
+      display: flex;
+      align-items: center;
+    }
+    a {
+      color: #5ab4ff;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>🏆 Leaderboard</h1>
+  <div class="leaderboard" id="leaderboard"></div>
+
+  <script>
+    async function loadLeaderboard() {
+      const res = await fetch('/api/leaderboard');
+      const users = await res.json();
+      const container = document.getElementById('leaderboard');
+
+      container.innerHTML = users.map((user, i) => `
+        <div class="entry">
+          <div class="left">
+            <span>${i + 1}.</span>
+            <img src="${user.profile_url || '/default.png'}" alt="${user.username}">
+            <a href="/profile/${user.username}">@${user.username}</a>
+          </div>
+          <span>$${user.balance}</span>
+        </div>
+      `).join('');
+    }
+
+    loadLeaderboard();
+  </script>
+</body>
+</html>
