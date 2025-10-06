@@ -6,15 +6,17 @@
   <title>Leaderboard</title>
   <style>
     body {
-      font-family: sans-serif;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: #121212;
       color: #fff;
       text-align: center;
       padding: 40px;
     }
+
     h1 {
       margin-bottom: 20px;
     }
+
     .leaderboard {
       max-width: 500px;
       margin: 0 auto;
@@ -23,6 +25,7 @@
       padding: 20px;
       box-shadow: 0 0 10px rgba(0,0,0,0.4);
     }
+
     .entry {
       display: flex;
       align-items: center;
@@ -30,9 +33,11 @@
       padding: 10px;
       border-bottom: 1px solid #333;
     }
+
     .entry:last-child {
       border-bottom: none;
     }
+
     .entry img {
       width: 40px;
       height: 40px;
@@ -40,16 +45,26 @@
       margin-right: 10px;
       object-fit: cover;
     }
+
     .left {
       display: flex;
       align-items: center;
     }
+
     a {
       color: #5ab4ff;
       text-decoration: none;
+      margin-left: 5px;
     }
+
     a:hover {
       text-decoration: underline;
+    }
+
+    .level {
+      color: #ffb74d;
+      font-weight: bold;
+      margin-left: 5px;
     }
   </style>
 </head>
@@ -73,6 +88,7 @@
               <span>${i + 1}.</span>
               <img src="${user.profileUrl || DEFAULT_PROFILE}" alt="${user.username}">
               <a href="/profile/${user.username}">@${user.username}</a>
+              <span class="level">(Lv ${user.level ?? 1})</span>
             </div>
             <span>$${user.balance}</span>
           </div>
