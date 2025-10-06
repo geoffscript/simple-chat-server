@@ -39,6 +39,7 @@ body { font-family: Arial, sans-serif; }
   <div id="userBar">
     Welcome, <span id="currentUser"></span> |
     <a id="profileLink" href="#">View My Profile</a> |
+    <a id="leaderboardLink" href="/leaderboard.html">View Leaderboard</a> |
     <span id="balanceDisplay">Balance: 0</span>
     <button id="logoutBtn">Logout</button>
   </div>
@@ -166,6 +167,12 @@ socket.on('chat history', msgs => {
 // New messages
 socket.on('chat message', addMessage);
 
+function escapeHtml(str) {
+  return str.replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
 function addMessage(msg) {
   const li = document.createElement('li');
   li.className = 'message';
@@ -175,7 +182,8 @@ function addMessage(msg) {
   img.onerror = () => { img.src = DEFAULT_PROFILE; };
 
   const text = document.createElement('span');
-  text.innerHTML = `<strong><a href="/profile/${msg.username}">${msg.username}</a>:</strong> ${msg.text}`;
+  const safeText = escapeHtml(msg.text);
+  text.innerHTML = `<strong><a href="/profile/${msg.username}">${msg.username}</a>:</strong> ${safeText}`;
 
   li.appendChild(img);
   li.appendChild(text);
