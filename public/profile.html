@@ -111,8 +111,8 @@ async function loadProfile() {
 
   const user = await res.json();
   document.getElementById('username').textContent = user.username;
-  document.getElementById('profilePic').src = user.profile_url || DEFAULT_PROFILE;
-  document.getElementById('aboutMe').textContent = user.about_me || 'This user hasn’t written anything yet.';
+  document.getElementById('profilePic').src = user.profileUrl || DEFAULT_PROFILE;
+  document.getElementById('aboutMe').textContent = user.aboutMe || 'This user hasn’t written anything yet.';
   document.getElementById('balance').textContent = `Balance: ${user.balance ?? 0}`;
 
   const aboutInput = document.getElementById('aboutMeInput');
@@ -125,7 +125,7 @@ async function loadProfile() {
   // If viewing own profile
   if (currentUser && currentUser.username === user.username) {
     editNotice.textContent = "(Editing your profile)";
-    aboutInput.value = user.about_me || '';
+    aboutInput.value = user.aboutMe || '';
     aboutInput.style.display = 'block';
     saveBtn.style.display = 'inline-block';
     logoutBtn.style.display = 'inline-block';
@@ -142,7 +142,7 @@ async function loadProfile() {
         });
         if (updateRes.ok) {
           const updated = await updateRes.json();
-          document.getElementById('aboutMe').textContent = updated.about_me || 'This user hasn’t written anything yet.';
+          document.getElementById('aboutMe').textContent = updated.aboutMe || 'This user hasn’t written anything yet.';
           saveMsg.textContent = 'Saved successfully!';
           setTimeout(() => { saveMsg.textContent = ''; }, 2000);
         }
