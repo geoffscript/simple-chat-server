@@ -46,8 +46,14 @@ app.post("/register", async (req, res) => {
        RETURNING id, username, profile_url, about_me, balance`,
       [username, hashedPassword, profileUrl || "", DEFAULT_ABOUT_ME, STARTING_BALANCE]
     );
-    req.session.user = result.rows[0];
-    res.json({ success: true, user: result.rows[0] });
+    req.session.user = {
+      id: result.rows[0].id,
+      username: result.rows[0].username,
+      profileUrl: result.rows[0].profile_url || "",
+      aboutMe: result.rows[0].about_me || DEFAULT_ABOUT_ME,
+      balance: Number(result.rows[0].balance)
+    };
+    res.json({ success: true, user: req.session.user });
   } catch (err) {
     console.error(err);
     if (err.code === "23505") res.json({ success: false, message: "Username taken" });
@@ -100,13 +106,11 @@ app.get("/api/me", async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ username: null });
 
     const user = result.rows[0];
-    if (!user.about_me) user.about_me = DEFAULT_ABOUT_ME;
     req.session.user.balance = Number(user.balance);
-
     res.json({
       username: user.username,
       profileUrl: user.profile_url || "",
-      aboutMe: user.about_me,
+      aboutMe: user.about_me || DEFAULT_ABOUT_ME,
       balance: Number(user.balance),
     });
   } catch (err) {
@@ -125,9 +129,7 @@ app.post("/faucet", async (req, res) => {
     if (!result.rows.length) return res.json({ success: false, message: "User not found" });
 
     const currentBalance = Number(result.rows[0].balance);
-    if (currentBalance > 0) {
-      return res.json({ success: false, message: "You still have money left!" });
-    }
+    if (currentBalance > 0) return res.json({ success: false, message: "You still have money left!" });
 
     const newBalance = 100;
     await pool.query(`UPDATE users SET balance=$1 WHERE username=$2`, [newBalance, username]);
@@ -147,14 +149,67 @@ app.get("/api/leaderboard", async (req, res) => {
     const result = await pool.query(
       `SELECT username, balance, profile_url FROM users ORDER BY balance DESC LIMIT 10`
     );
-    res.json(result.rows);
+    res.json(result.rows.map(u => ({
+      username: u.username,
+      balance: Number(u.balance),
+      profileUrl: u.profile_url || ""
+    })));
   } catch (err) {
     console.error("Error fetching leaderboard:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// --- Profile ---
+// --- Profile API (fixed camelCase for frontend) ---
+app.get("/api/user/:username", async (req, res) => {
+  const { username } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT username, profile_url, about_me, balance FROM users WHERE username=$1`,
+      [username]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: "User not found" });
+
+    const user = result.rows[0];
+    res.json({
+      username: user.username,
+      profileUrl: user.profile_url || "",
+      aboutMe: user.about_me || DEFAULT_ABOUT_ME,
+      balance: Number(user.balance ?? 0)
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// --- Update About Me ---
+app.post("/api/user/:username/about", async (req, res) => {
+  const { username } = req.params;
+  const { about_me } = req.body;
+  if (!req.session.user || req.session.user.username !== username)
+    return res.status(403).json({ error: "Not authorized" });
+
+  try {
+    const result = await pool.query(
+      `UPDATE users SET about_me=$1 WHERE username=$2 RETURNING username, profile_url, about_me`,
+      [about_me, username]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: "User not found" });
+
+    req.session.user.aboutMe = about_me;
+    res.json({
+      username: result.rows[0].username,
+      profileUrl: result.rows[0].profile_url || "",
+      aboutMe: result.rows[0].about_me || DEFAULT_ABOUT_ME
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// --- Profile page ---
 app.get("/profile/:username", (req, res) => {
   res.sendFile(path.join(__dirname, "public/profile.html"));
 });
