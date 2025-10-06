@@ -148,7 +148,7 @@
 
 <div id="chat">
   <div id="userBar">
-    Welcome, <span id="currentUser"></span> |
+    Welcome, <span id="currentUser"></span> <span id="userLevel">(Lv 1)</span> |
     <a id="profileLink" href="#">View My Profile</a> |
     <a id="leaderboardLink" href="/leaderboard.html">Leaderboard</a> |
     <span id="balanceDisplay">Balance: 0</span>
@@ -172,6 +172,7 @@ let currentUser = null;
 const authDiv = document.getElementById('auth');
 const chatDiv = document.getElementById('chat');
 const currentUserSpan = document.getElementById('currentUser');
+const userLevelSpan = document.getElementById('userLevel');
 const profileLink = document.getElementById('profileLink');
 const messagesUl = document.getElementById('messages');
 const balanceDisplay = document.getElementById('balanceDisplay');
@@ -255,7 +256,9 @@ function loginAs(user) {
   currentUser = user;
   currentUser.profileUrl = currentUser.profileUrl || DEFAULT_PROFILE;
   currentUser.balance = Number(user.balance ?? 100);
+  currentUser.level = Number(user.level ?? 1);
   currentUserSpan.textContent = currentUser.username;
+  userLevelSpan.textContent = `(Lv ${currentUser.level})`;
   profileLink.href = `/profile/${currentUser.username}`;
   authDiv.style.display = 'none';
   chatDiv.style.display = 'block';
@@ -276,7 +279,8 @@ document.getElementById('messageForm').addEventListener('submit', e => {
   const msg = {
     username: currentUser.username,
     profileUrl: currentUser.profileUrl || DEFAULT_PROFILE,
-    text: msgInput.value
+    text: msgInput.value,
+    level: currentUser.level
   };
   socket.emit('chat message', msg);
   msgInput.value = '';
@@ -315,7 +319,8 @@ function addMessage(msg) {
 
   const text = document.createElement('span');
   const safeText = escapeHtml(msg.text);
-  text.innerHTML = `<strong><a href="/profile/${msg.username}">${msg.username}</a>:</strong> ${safeText}`;
+  const levelText = msg.level ? ` (Lv ${msg.level})` : '';
+  text.innerHTML = `<strong><a href="/profile/${msg.username}">${msg.username}</a>${levelText}:</strong> ${safeText}`;
 
   li.appendChild(img);
   li.appendChild(text);
