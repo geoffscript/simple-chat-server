@@ -13,7 +13,7 @@ body { font-family: Arial, sans-serif; }
 #userBar a { margin-left: 10px; color: #007bff; text-decoration: none; }
 #userBar a:hover { text-decoration: underline; }
 #balanceDisplay { margin-left: 10px; font-weight: bold; }
-#logoutBtn { margin-left: 10px; padding: 2px 8px; cursor: pointer; }
+#logoutBtn, #faucetBtn { margin-left: 10px; padding: 2px 8px; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -41,6 +41,7 @@ body { font-family: Arial, sans-serif; }
     <a id="profileLink" href="#">View My Profile</a> |
     <a id="leaderboardLink" href="/leaderboard.html">View Leaderboard</a> |
     <span id="balanceDisplay">Balance: 0</span>
+    <button id="faucetBtn" style="display:none;">Claim $100</button>
     <button id="logoutBtn">Logout</button>
   </div>
 
@@ -63,6 +64,7 @@ const currentUserSpan = document.getElementById('currentUser');
 const profileLink = document.getElementById('profileLink');
 const messagesUl = document.getElementById('messages');
 const balanceDisplay = document.getElementById('balanceDisplay');
+const faucetBtn = document.getElementById('faucetBtn');
 const DEFAULT_PROFILE = 'https://via.placeholder.com/30';
 
 // Auto-login
@@ -119,6 +121,24 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
   messagesUl.innerHTML = '';
 });
 
+// Faucet claim
+faucetBtn.addEventListener('click', async () => {
+  try {
+    const res = await fetch('/faucet', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      currentUser.balance = data.newBalance;
+      updateBalance();
+      alert("You claimed $100!");
+    } else {
+      alert(data.message || "You can't claim right now.");
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Error claiming faucet.");
+  }
+});
+
 // Login function
 function loginAs(user) {
   currentUser = user;
@@ -134,6 +154,7 @@ function loginAs(user) {
 // Update balance
 function updateBalance() {
   balanceDisplay.textContent = `Balance: ${currentUser.balance}`;
+  faucetBtn.style.display = currentUser.balance <= 0 ? "inline-block" : "none";
 }
 
 // Send message
