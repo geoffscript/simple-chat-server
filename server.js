@@ -220,7 +220,6 @@ app.post("/api/user/:username/about", async (req, res) => {
 });
 
 // --- Profile Comments System ---
-
 // Add a comment
 app.post("/api/profile/:username/comment", async (req, res) => {
   try {
@@ -293,7 +292,7 @@ app.get("/profile/:username", (req, res) => {
   res.sendFile(path.join(__dirname, "public/profile.html"));
 });
 
-// --- Chat with XP/Levels ---
+// --- Chat with /gamble, XP, Levels ---
 let messages = [];
 
 io.on("connection", (socket) => {
@@ -302,9 +301,41 @@ io.on("connection", (socket) => {
   socket.on("chat message", async (msg) => {
     if (!msg.username) return;
 
-    // /gamble logic (unchanged)
-    // ...
-    // XP / Leveling (unchanged)
+    // --- /gamble ---
+    if (msg.text.startsWith("/gamble")) {
+      const parts = msg.text.split(" ");
+      const amount = parseInt(parts[1]);
+      if (isNaN(amount) || amount <= 0) {
+        socket.emit("chat message", { username: "System", profileUrl: "", text: "Invalid gamble amount." });
+        return;
+      }
+
+      try {
+        const result = await pool.query(`SELECT balance FROM users WHERE username=$1`, [msg.username]);
+        if (!result.rows.length) return;
+
+        let balance = Number(result.rows[0].balance);
+        if (amount > balance) {
+          socket.emit("chat message", { username: "System", profileUrl: "", text: "You don't have enough money to gamble." });
+          return;
+        }
+
+        const win = Math.random() < 0.5;
+        balance = win ? balance + amount : balance - amount;
+
+        await pool.query(`UPDATE users SET balance=$1 WHERE username=$2`, [balance, msg.username]);
+        if (socket.request.session?.user?.username === msg.username) socket.request.session.user.balance = balance;
+
+        socket.emit("chat message", { username: "System", profileUrl: "", text: win ? `You won ${amount}!` : `You lost ${amount}!` });
+        socket.emit("update balance", { balance });
+      } catch (err) {
+        console.error("Gamble error:", err);
+        socket.emit("chat message", { username: "System", profileUrl: "", text: "An error occurred during gambling." });
+      }
+      return;
+    }
+
+    // --- XP / Leveling ---
     try {
       const userRes = await pool.query(`SELECT xp, level FROM users WHERE username=$1`, [msg.username]);
       if (userRes.rows.length) {
@@ -322,7 +353,9 @@ io.on("connection", (socket) => {
         }
         msg.level = level;
       }
-    } catch (err) { console.error("XP error:", err); }
+    } catch (err) {
+      console.error("XP error:", err);
+    }
 
     messages.push(msg);
     if (messages.length > 50) messages.shift();
