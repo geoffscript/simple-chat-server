@@ -1,192 +1,282 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>User Profile</title>
-<style>
-  body {
-    font-family: Arial, sans-serif;
-    text-align: center;
-    margin-top: 50px;
-    background: #fafafa;
-  }
-
-  #profile {
-    display: inline-block;
-    background: white;
-    padding: 30px;
-    border-radius: 12px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
-  }
-
-  #profile img {
-    width: 150px;
-    height: 150px;
-    border-radius: 50%;
-    object-fit: cover;
-    margin-bottom: 10px;
-  }
-
-  #username {
-    font-size: 24px;
-    font-weight: bold;
-  }
-
-  #level {
-    font-size: 18px;
-    color: #555;
-    margin-bottom: 10px;
-  }
-
-  #aboutMeInput {
-    width: 300px;
-    height: 80px;
-    margin-top: 10px;
-  }
-
-  button {
-    margin-top: 5px;
-    padding: 5px 10px;
-    cursor: pointer;
-  }
-
-  #saveMsg {
-    color: green;
-    margin-top: 5px;
-  }
-
-  #editNotice {
-    color: #666;
-    font-size: 0.9em;
-    margin-top: 5px;
-  }
-
-  #balance {
-    font-weight: bold;
-    margin: 5px 0;
-  }
-
-  #logoutBtn {
-    margin-top: 15px;
-    background: #f44336;
-    color: white;
-    border: none;
-    border-radius: 5px;
-  }
-
-  #backToChatBtn {
-    margin-top: 10px;
-    background: #2196F3;
-    color: white;
-    border: none;
-    border-radius: 5px;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>User Profile</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #121212;
+      color: #eee;
+      padding: 20px;
+    }
+    .profile-container {
+      max-width: 700px;
+      margin: 0 auto;
+      background: #1e1e1e;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 0 10px rgba(255,255,255,0.1);
+    }
+    .profile-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .profile-header img {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #333;
+    }
+    .profile-info h2 {
+      margin: 0;
+    }
+    .about-me {
+      margin-top: 20px;
+      background: #2a2a2a;
+      padding: 10px;
+      border-radius: 8px;
+      min-height: 60px;
+    }
+    .comments-section {
+      margin-top: 30px;
+    }
+    .comment {
+      background: #2a2a2a;
+      padding: 10px;
+      border-radius: 8px;
+      margin-top: 10px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      position: relative;
+    }
+    .comment img {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    .comment-content {
+      flex: 1;
+    }
+    .comment-author {
+      font-weight: bold;
+    }
+    .comment-level {
+      font-size: 12px;
+      color: #aaa;
+      margin-left: 5px;
+    }
+    .comment-delete {
+      position: absolute;
+      right: 8px;
+      top: 8px;
+      background: none;
+      border: none;
+      color: #888;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .comment-delete:hover {
+      color: #ff5555;
+    }
+    .add-comment {
+      margin-top: 15px;
+      display: flex;
+      gap: 8px;
+    }
+    .add-comment textarea {
+      flex: 1;
+      border-radius: 8px;
+      border: 1px solid #333;
+      background: #2a2a2a;
+      color: #eee;
+      padding: 8px;
+      resize: none;
+      min-height: 60px;
+    }
+    .add-comment button {
+      background: #4caf50;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 14px;
+      cursor: pointer;
+    }
+    .add-comment button:hover {
+      background: #45a049;
+    }
+    a.back-link {
+      display: inline-block;
+      margin-bottom: 20px;
+      color: #aaa;
+      text-decoration: none;
+    }
+    a.back-link:hover {
+      color: #fff;
+    }
+  </style>
 </head>
 <body>
-<div id="profile">
-  <img id="profilePic" src="https://via.placeholder.com/150" alt="Profile Picture">
-  <h2 id="username"></h2>
-  <p id="level">(Lv 1)</p>
-  <p id="balance"></p>
-  <p id="editNotice"></p>
-  <p id="aboutMe"></p>
-  <textarea id="aboutMeInput" placeholder="Write something about yourself..."></textarea><br>
-  <button id="saveAboutBtn">Save</button>
-  <div id="saveMsg"></div>
-  <button id="logoutBtn" style="display:none;">Log Out</button>
-  <button id="backToChatBtn" style="display:none;">Back to Chat</button>
-</div>
+  <a href="/" class="back-link">← Back to Chat</a>
+  <div class="profile-container">
+    <div class="profile-header">
+      <img id="profileImage" src="" alt="Profile Picture" />
+      <div class="profile-info">
+        <h2 id="username"></h2>
+        <p>Level <span id="level"></span> | Balance: $<span id="balance"></span></p>
+      </div>
+    </div>
 
-<script>
-const DEFAULT_PROFILE = 'https://via.placeholder.com/150';
-let currentUser = null;
+    <div class="about-me">
+      <h3>About Me</h3>
+      <p id="aboutMe"></p>
+      <textarea id="aboutMeEdit" style="display:none;"></textarea>
+      <button id="editAboutBtn" style="margin-top:8px;">Edit</button>
+      <button id="saveAboutBtn" style="display:none; margin-top:8px;">Save</button>
+    </div>
 
-// Fetch current logged-in user info
-async function getCurrentUser() {
-  try {
-    const res = await fetch('/api/me');
-    if (res.ok) currentUser = await res.json();
-  } catch (err) {
-    console.error(err);
-  }
-}
+    <div class="comments-section">
+      <h3>Profile Comments</h3>
+      <div id="commentsList"></div>
 
-async function loadProfile() {
-  await getCurrentUser();
-  const username = window.location.pathname.split('/').pop();
-  const res = await fetch(`/api/user/${username}`);
-  if (!res.ok) {
-    document.getElementById('profile').innerHTML = '<p>User not found</p>';
-    return;
-  }
+      <div class="add-comment" id="addCommentContainer" style="display:none;">
+        <textarea id="commentText" placeholder="Leave a comment..."></textarea>
+        <button id="submitComment">Post</button>
+      </div>
+    </div>
+  </div>
 
-  const user = await res.json();
-  document.getElementById('username').textContent = user.username;
-  document.getElementById('profilePic').src = user.profileUrl || DEFAULT_PROFILE;
-  document.getElementById('aboutMe').textContent = user.aboutMe || 'This user hasn’t written anything yet.';
-  document.getElementById('balance').textContent = `Balance: ${user.balance ?? 0}`;
-  document.getElementById('level').textContent = `(Lv ${user.level ?? 1})`;
+  <script>
+    const username = window.location.pathname.split("/").pop();
+    let currentUser = null;
 
-  const aboutInput = document.getElementById('aboutMeInput');
-  const saveBtn = document.getElementById('saveAboutBtn');
-  const saveMsg = document.getElementById('saveMsg');
-  const editNotice = document.getElementById('editNotice');
-  const logoutBtn = document.getElementById('logoutBtn');
-  const backBtn = document.getElementById('backToChatBtn');
-
-  // If viewing own profile
-  if (currentUser && currentUser.username === user.username) {
-    editNotice.textContent = "(Editing your profile)";
-    aboutInput.value = user.aboutMe || '';
-    aboutInput.style.display = 'block';
-    saveBtn.style.display = 'inline-block';
-    logoutBtn.style.display = 'inline-block';
-    backBtn.style.display = 'inline-block';
-
-    // Save About Me
-    saveBtn.onclick = async () => {
-      const aboutText = aboutInput.value;
-      try {
-        const updateRes = await fetch(`/api/user/${user.username}/about`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ about_me: aboutText })
-        });
-        if (updateRes.ok) {
-          const updated = await updateRes.json();
-          document.getElementById('aboutMe').textContent = updated.aboutMe || 'This user hasn’t written anything yet.';
-          saveMsg.textContent = 'Saved successfully!';
-          setTimeout(() => { saveMsg.textContent = ''; }, 2000);
-        }
-      } catch (err) {
-        console.error(err);
-        saveMsg.textContent = 'Error saving.';
-        setTimeout(() => { saveMsg.textContent = ''; }, 2000);
+    async function fetchCurrentUser() {
+      const res = await fetch("/api/me");
+      currentUser = await res.json();
+      if (currentUser.username) {
+        document.getElementById("addCommentContainer").style.display = "flex";
       }
-    };
+    }
 
-    // Log out
-    logoutBtn.onclick = async () => {
-      await fetch('/logout', { method: 'POST' });
-      window.location.href = '/';
-    };
+    async function loadProfile() {
+      const res = await fetch(`/api/user/${username}`);
+      const data = await res.json();
+      if (data.error) {
+        document.body.innerHTML = "<h2>User not found.</h2>";
+        return;
+      }
+      document.getElementById("username").textContent = data.username;
+      document.getElementById("profileImage").src = data.profileUrl || "/default-profile.png";
+      document.getElementById("aboutMe").textContent = data.aboutMe;
+      document.getElementById("balance").textContent = data.balance;
+      document.getElementById("level").textContent = data.level;
 
-    // Back to Chat
-    backBtn.onclick = () => window.location.href = '/';
+      if (currentUser && currentUser.username === data.username) {
+        document.getElementById("editAboutBtn").style.display = "inline-block";
+      } else {
+        document.getElementById("editAboutBtn").style.display = "none";
+      }
 
-  } else {
-    // Viewing someone else's profile
-    aboutInput.style.display = 'none';
-    saveBtn.style.display = 'none';
-    logoutBtn.style.display = 'none';
-    backBtn.style.display = currentUser ? 'inline-block' : 'none';
-    editNotice.textContent = '';
-    if (currentUser) backBtn.onclick = () => window.location.href = '/';
-  }
-}
+      loadComments();
+    }
 
-loadProfile();
-</script>
+    async function loadComments() {
+      const res = await fetch(`/api/profile/${username}/comments`);
+      const comments = await res.json();
+      const container = document.getElementById("commentsList");
+      container.innerHTML = "";
+      comments.forEach(c => {
+        const div = document.createElement("div");
+        div.classList.add("comment");
+        div.innerHTML = `
+          <img src="${c.profile_url || "/default-profile.png"}" alt="">
+          <div class="comment-content">
+            <div>
+              <span class="comment-author">${c.username}</span>
+              <span class="comment-level">Level ${c.level}</span>
+            </div>
+            <div>${c.comment_text}</div>
+          </div>
+        `;
+        // Allow deletion for comment author or profile owner
+        if (
+          currentUser &&
+          (currentUser.username === c.username || currentUser.username === username)
+        ) {
+          const btn = document.createElement("button");
+          btn.textContent = "✕";
+          btn.classList.add("comment-delete");
+          btn.onclick = () => deleteComment(c.id);
+          div.appendChild(btn);
+        }
+        container.appendChild(div);
+      });
+    }
+
+    async function postComment() {
+      const text = document.getElementById("commentText").value.trim();
+      if (!text) return alert("Please enter a comment");
+      const res = await fetch(`/api/profile/${username}/comment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text })
+      });
+      const data = await res.json();
+      if (data.success) {
+        document.getElementById("commentText").value = "";
+        loadComments();
+      } else {
+        alert(data.error || "Error posting comment");
+      }
+    }
+
+    async function deleteComment(id) {
+      if (!confirm("Delete this comment?")) return;
+      const res = await fetch(`/api/profile/comments/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.success) loadComments();
+      else alert("Error deleting comment");
+    }
+
+    document.getElementById("submitComment").addEventListener("click", postComment);
+
+    // About Me Editing
+    document.getElementById("editAboutBtn").addEventListener("click", () => {
+      document.getElementById("aboutMe").style.display = "none";
+      document.getElementById("aboutMeEdit").style.display = "block";
+      document.getElementById("saveAboutBtn").style.display = "inline-block";
+      document.getElementById("editAboutBtn").style.display = "none";
+      document.getElementById("aboutMeEdit").value =
+        document.getElementById("aboutMe").textContent;
+    });
+
+    document.getElementById("saveAboutBtn").addEventListener("click", async () => {
+      const text = document.getElementById("aboutMeEdit").value.trim();
+      const res = await fetch(`/api/user/${username}/about`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ about_me: text })
+      });
+      const data = await res.json();
+      if (!data.error) {
+        document.getElementById("aboutMe").textContent = data.aboutMe;
+        document.getElementById("aboutMe").style.display = "block";
+        document.getElementById("aboutMeEdit").style.display = "none";
+        document.getElementById("saveAboutBtn").style.display = "none";
+        document.getElementById("editAboutBtn").style.display = "inline-block";
+      } else alert(data.error);
+    });
+
+    (async function init() {
+      await fetchCurrentUser();
+      await loadProfile();
+    })();
+  </script>
 </body>
 </html>
