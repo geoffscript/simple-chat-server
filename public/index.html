@@ -79,6 +79,13 @@
     margin-left: 5px;
   }
 
+  #areaDisplay {
+    font-weight: 600;
+    background: #2a2a2a;
+    padding: 3px 8px;
+    border-radius: 999px;
+  }
+
   #messages {
     list-style: none;
     padding: 0;
@@ -147,6 +154,7 @@
 
 <div id="chat">
   <div id="userBar">
+    <span id="areaDisplay" title="Your current area">Area: —</span> |
     Welcome, <span id="currentUser"></span> <span id="userLevel">(Lv 1)</span> |
     <a id="profileLink" href="#">View My Profile</a> |
     <a id="leaderboardLink" href="/leaderboard.html">Leaderboard</a> |
@@ -175,6 +183,7 @@ const userLevelSpan = document.getElementById('userLevel');
 const profileLink = document.getElementById('profileLink');
 const messagesUl = document.getElementById('messages');
 const balanceDisplay = document.getElementById('balanceDisplay');
+const areaDisplay = document.getElementById('areaDisplay');
 const faucetBtn = document.getElementById('faucetBtn');
 const DEFAULT_PROFILE = 'https://via.placeholder.com/30';
 
@@ -184,7 +193,10 @@ const DEFAULT_PROFILE = 'https://via.placeholder.com/30';
     const res = await fetch('/api/me');
     if (res.ok) {
       const data = await res.json();
-      if (data.username) loginAs(data);
+      if (data.username) {
+        loginAs(data);
+        await refreshArea(); // show area immediately after auto-login
+      }
     }
   } catch (err) { console.error(err); }
 })();
@@ -193,34 +205,46 @@ const DEFAULT_PROFILE = 'https://via.placeholder.com/30';
 document.getElementById('registerForm').addEventListener('submit', async e => {
   e.preventDefault();
   const profileUrlInput = document.getElementById('profileUrl').value.trim();
-  const res = await fetch('/register', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      username: document.getElementById('regUsername').value,
-      password: document.getElementById('regPassword').value,
-      profileUrl: profileUrlInput
-    })
-  });
-  const data = await res.json();
-  if (data.success) loginAs(data.user);
-  else alert(data.message || 'Error');
+  try {
+    const res = await fetch('/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: document.getElementById('regUsername').value,
+        password: document.getElementById('regPassword').value,
+        profileUrl: profileUrlInput
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      loginAs(data.user);
+      await refreshArea();
+    } else {
+      alert(data.message || 'Error');
+    }
+  } catch (err) { console.error(err); alert('Error'); }
 });
 
 // Login
 document.getElementById('loginForm').addEventListener('submit', async e => {
   e.preventDefault();
-  const res = await fetch('/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      username: document.getElementById('loginUsername').value,
-      password: document.getElementById('loginPassword').value
-    })
-  });
-  const data = await res.json();
-  if (data.success) loginAs(data.user);
-  else alert(data.message || 'Error');
+  try {
+    const res = await fetch('/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: document.getElementById('loginUsername').value,
+        password: document.getElementById('loginPassword').value
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      loginAs(data.user);
+      await refreshArea();
+    } else {
+      alert(data.message || 'Error');
+    }
+  } catch (err) { console.error(err); alert('Error'); }
 });
 
 // Logout
@@ -230,6 +254,7 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
   chatDiv.style.display = 'none';
   authDiv.style.display = 'block';
   messagesUl.innerHTML = '';
+  areaDisplay.textContent = 'Area: —';
 });
 
 // Faucet claim
@@ -268,6 +293,24 @@ function loginAs(user) {
 function updateBalance() {
   balanceDisplay.textContent = `Balance: ${currentUser.balance}`;
   faucetBtn.style.display = currentUser.balance <= 0 ? "inline-block" : "none";
+}
+
+// Fetch and render current area
+async function refreshArea() {
+  try {
+    const res = await fetch('/api/area');
+    if (!res.ok) throw new Error('Failed to load area');
+    const area = await res.json();
+    if (area && area.name) {
+      areaDisplay.textContent = `Area: ${area.name}`;
+      areaDisplay.title = area.description || 'Your current area';
+    } else {
+      areaDisplay.textContent = 'Area: City';
+    }
+  } catch (err) {
+    console.error('Area fetch error:', err);
+    areaDisplay.textContent = 'Area: City';
+  }
 }
 
 // Send message
@@ -313,9 +356,9 @@ function addMessage(msg) {
   li.className = 'message';
 
   const text = document.createElement('span');
-  const safeText = escapeHtml(msg.text);
+  const safeText = escapeHtml(msg.text || '');
   const levelText = msg.level ? ` (Lv ${msg.level})` : '';
-  text.innerHTML = `<strong>${msg.username === 'System' ? 'System' : `<a href="/profile/${msg.username}">${msg.username}</a>${levelText}`}</strong>: ${safeText}`;
+  text.innerHTML = `<strong>${msg.username === 'System' ? 'System' : `<a href="/profile/${msg.username}">${escapeHtml(msg.username)}</a>${levelText}`}</strong>: ${safeText}`;
 
   // Only add image if not a system message
   if (msg.username !== 'System') {
