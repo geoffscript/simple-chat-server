@@ -40,6 +40,25 @@ function getNextLevelXP(level) {
   return Math.pow(2, level - 1);
 }
 
+// --- City helper (single-area world) ---
+let CITY_ID_CACHE = null;
+async function getCityId() {
+  if (CITY_ID_CACHE) return CITY_ID_CACHE;
+  // Ensure "City" exists; create it if not found
+  const sel = await pool.query(`SELECT id FROM city_areas WHERE name = $1 LIMIT 1`, ["City"]);
+  if (sel.rows.length) {
+    CITY_ID_CACHE = sel.rows[0].id;
+    return CITY_ID_CACHE;
+  }
+  const ins = await pool.query(
+    `INSERT INTO city_areas (name, description, image_url)
+     VALUES ($1, $2, $3) RETURNING id`,
+    ["City", "A sprawling modern metropolis full of life and opportunity.", "/images/city.jpg"]
+  );
+  CITY_ID_CACHE = ins.rows[0].id;
+  return CITY_ID_CACHE;
+}
+
 app.get("/", (req, res) => res.sendFile(path.join(__dirname, "public/index.html")));
 
 // --- Register ---
@@ -47,14 +66,25 @@ app.post("/register", async (req, res) => {
   const { username, password, profileUrl } = req.body;
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
+    const cityId = await getCityId();
     const result = await pool.query(
-      `INSERT INTO users (username, password_hash, profile_url, about_me, balance, xp, level)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)
-       RETURNING id, username, profile_url, about_me, balance, xp, level`,
-      [username, hashedPassword, profileUrl || "", DEFAULT_ABOUT_ME, STARTING_BALANCE, STARTING_XP, STARTING_LEVEL]
+      `INSERT INTO users (username, password_hash, profile_url, about_me, balance, xp, level, current_area_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       RETURNING id, username, profile_url, about_me, balance, xp, level, current_area_id`,
+      [username, hashedPassword, profileUrl || "", DEFAULT_ABOUT_ME, STARTING_BALANCE, STARTING_XP, STARTING_LEVEL, cityId]
     );
-    req.session.user = result.rows[0];
-    res.json({ success: true, user: result.rows[0] });
+    const row = result.rows[0];
+    req.session.user = {
+      id: row.id,
+      username: row.username,
+      profileUrl: row.profile_url || "",
+      aboutMe: row.about_me || DEFAULT_ABOUT_ME,
+      balance: Number(row.balance),
+      xp: Number(row.xp ?? STARTING_XP),
+      level: Number(row.level ?? STARTING_LEVEL),
+      currentAreaId: row.current_area_id || cityId,
+    };
+    res.json({ success: true, user: req.session.user });
   } catch (err) {
     console.error(err);
     if (err.code === "23505") res.json({ success: false, message: "Username taken" });
@@ -73,6 +103,7 @@ app.post("/login", async (req, res) => {
     const match = await bcrypt.compare(password, userDb.password_hash);
     if (!match) return res.json({ success: false, message: "Invalid username or password" });
 
+    const cityId = await getCityId();
     const user = {
       id: userDb.id,
       username: userDb.username,
@@ -80,8 +111,14 @@ app.post("/login", async (req, res) => {
       aboutMe: userDb.about_me || DEFAULT_ABOUT_ME,
       balance: Number(userDb.balance ?? STARTING_BALANCE),
       xp: Number(userDb.xp ?? STARTING_XP),
-      level: Number(userDb.level ?? STARTING_LEVEL)
+      level: Number(userDb.level ?? STARTING_LEVEL),
+      currentAreaId: userDb.current_area_id || cityId,
     };
+
+    // Auto-fix null current_area_id to the City
+    if (!userDb.current_area_id) {
+      await pool.query(`UPDATE users SET current_area_id=$1 WHERE id=$2`, [cityId, userDb.id]);
+    }
 
     req.session.user = user;
     res.json({ success: true, user });
@@ -100,18 +137,28 @@ app.post("/logout", (req, res) => {
 app.get("/api/me", async (req, res) => {
   if (!req.session.user) return res.status(200).json({ username: null });
   try {
+    const cityId = await getCityId();
     const result = await pool.query(
-      `SELECT username, profile_url, about_me, balance, xp, level FROM users WHERE username=$1`,
+      `SELECT username, profile_url, about_me, balance, xp, level, current_area_id
+       FROM users WHERE username=$1`,
       [req.session.user.username]
     );
     if (!result.rows.length) return res.status(404).json({ username: null });
 
     const user = result.rows[0];
+    const currentAreaId = user.current_area_id || cityId;
+
+    // Auto-fix if needed
+    if (!user.current_area_id) {
+      await pool.query(`UPDATE users SET current_area_id=$1 WHERE username=$2`, [cityId, user.username]);
+    }
+
     req.session.user = {
       ...req.session.user,
       balance: Number(user.balance),
       xp: Number(user.xp),
-      level: Number(user.level)
+      level: Number(user.level),
+      currentAreaId,
     };
     res.json({
       username: user.username,
@@ -119,11 +166,55 @@ app.get("/api/me", async (req, res) => {
       aboutMe: user.about_me || DEFAULT_ABOUT_ME,
       balance: Number(user.balance),
       xp: Number(user.xp),
-      level: Number(user.level)
+      level: Number(user.level),
+      currentAreaId,
     });
   } catch (err) {
     console.error(err);
     res.status(500).json({ username: null });
+  }
+});
+
+// --- Area: get current area details ---
+app.get("/api/area", async (req, res) => {
+  try {
+    if (!req.session.user) return res.status(200).json({ key: null });
+
+    const cityId = await getCityId();
+    const row = await pool.query(
+      `SELECT a.id, a.name, a.description, a.image_url
+       FROM users u
+       LEFT JOIN city_areas a ON a.id = u.current_area_id
+       WHERE u.username = $1
+       LIMIT 1`,
+      [req.session.user.username]
+    );
+
+    // If user has no area (null), set to City then return City
+    if (!row.rows.length || !row.rows[0].id) {
+      await pool.query(`UPDATE users SET current_area_id=$1 WHERE username=$2`, [cityId, req.session.user.username]);
+      const cityRow = await pool.query(`SELECT id, name, description, image_url FROM city_areas WHERE id = $1`, [cityId]);
+      const a = cityRow.rows[0];
+      req.session.user.currentAreaId = a.id;
+      return res.json({
+        id: a.id,
+        name: a.name,
+        description: a.description,
+        imageUrl: a.image_url || "",
+      });
+    }
+
+    const a = row.rows[0];
+    req.session.user.currentAreaId = a.id;
+    res.json({
+      id: a.id,
+      name: a.name,
+      description: a.description,
+      imageUrl: a.image_url || "",
+    });
+  } catch (err) {
+    console.error("Area get error:", err);
+    res.status(500).json({ error: "Server error" });
   }
 });
 
